@@ -1,0 +1,77 @@
+.text {
+    -fx-fill: #ccc;
+}
+
+
+.draw {
+    -fx-fill: #aef;
+    -fx-font-weight: bold;
+}
+
+.global {
+    -fx-fill: #77d;
+    -fx-font-weight: bold;
+}
+
+.bool {
+    -fx-fill: #d77;
+    -fx-font-weight: bold;
+}
+.func {
+    -fx-fill: #fea;
+    -fx-font-weight: bold;
+}
+.obj {
+    -fx-fill: #94f;
+    -fx-font-weight: bold;
+}
+.prep {
+    -fx-fill: #6aa;
+    -fx-font-weight: bold;
+}
+.num {
+    -fx-fill: #eee;
+}
+.adt {
+    -fx-fill: #f4f;
+    -fx-font-weight: bold;
+}
+
+
+.keyword {
+    -fx-fill: #aef;
+    -fx-font-weight: bold;
+}
+.semicolon {
+}
+.paren {
+    -fx-fill: white;
+}
+.bracket {
+    -fx-fill: #aaa;
+    -fx-font-weight: bold;
+}
+.brace {
+    -fx-fill: #aaa;
+    -fx-font-weight: bold;
+}
+.string {
+    -fx-fill: #999;
+}
+.comment {
+	-fx-fill: cadetblue;
+}
+.paragraph-box:has-caret {
+    -fx-background-color: #252525;
+}
+.lineno {
+    -fx-background-color: #444;
+    -fx-font-size: 10pt;
+}
+.codeArea .virtual-flow .paragraph-box .paragraph-text .text {
+    -fx-font-family: 'Source Code Pro';
+    -fx-font-size: 9pt;
+}
+.codeArea {
+    -fx-background-color: #333;
+}
