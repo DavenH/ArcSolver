@@ -4,7 +4,12 @@ import gen.priors.spatial.Compass;
 
 public enum Symmetry
 {
-    Diag, NegDiag, Vert, Horz;
+    Diag,
+    NegDiag,
+    Vert,
+    Horz,
+//    Trans,
+    ;
 
     public static Symmetry fromCompass(Compass dir)
     {

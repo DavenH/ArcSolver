@@ -1,0 +1,39 @@
+package gen.grid;
+
+public class GridTest
+{
+    public static void log(Object obj)
+    {
+        System.out.println(obj == null ? null : obj.toString());
+    }
+
+    public static ColorGrid makeShapelyGrid()
+    {
+        ColorGrid grid = new ColorGrid(null,
+                                       "0000000000" +
+                                       "0001224000" +
+                                       "0001144000" +
+                                       "0001554000" +
+                                       "0022266600" +
+                                       "0022266000" +
+                                       "0022266000" +
+                                       "0077766000", 10);
+
+        return grid;
+    }
+
+    public static ColorGrid makeWackyGrid()
+    {
+        ColorGrid grid = new ColorGrid(null, "10239485610934109" +
+                                             "46103941834123604" +
+                                             "10000000000087483" +
+                                             "90123491049384710" +
+                                             "234817341", 9);
+        return grid;
+    }
+
+    public static void line()
+    {
+        log("\n-----------------------------------------\n");
+    }
+}

@@ -10,12 +10,15 @@ import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.PrintWriter;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class Controller
 {
     List<Task> trainTasks;
     List<Task> testTasks;
+    Map<String, Integer> codeToIndex = new HashMap<>();
 
     public Controller()
     {
@@ -30,20 +33,27 @@ public class Controller
 
         try
         {
+            int count = 0;
             for(File file : trainingDir.listFiles())
             {
                 JsonReader reader = new JsonReader(new FileReader(file));
                 JsonElement elem = JsonParser.parseReader(reader);
+
                 Task task = new Task(file.getName(), elem.getAsJsonObject());
                 trainTasks.add(task);
+
+                codeToIndex.put(file.getName(), count++);
             }
 
+            count = 0;
             for(File file : evalDir.listFiles())
             {
                 JsonReader reader = new JsonReader(new FileReader(file));
                 JsonElement elem = JsonParser.parseReader(reader);
+
                 Task task = new Task(file.getName(), elem.getAsJsonObject());
                 testTasks.add(task);
+                codeToIndex.put(file.getName(), count++);
             }
         }
         catch (FileNotFoundException e)
@@ -56,6 +66,7 @@ public class Controller
     {
         File trainingDir = new File(directory.getAbsolutePath() + File.separatorChar + "training");
         File evalDir = new File(directory.getAbsolutePath() + File.separatorChar + "evaluation");
+
         saveTasks(trainingDir, trainTasks);
         saveTasks(evalDir, testTasks);
     }
@@ -119,5 +130,10 @@ public class Controller
     public List<Task> getTasks(boolean training)
     {
         return training ? trainTasks : testTasks;
+    }
+
+    public int getIndex(String code)
+    {
+        return codeToIndex.getOrDefault(code, 0);
     }
 }

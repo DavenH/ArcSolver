@@ -60,7 +60,7 @@ public class Board extends GridPane
             }
         }
 
-        ColorGrid.EntropyData data = grid.calculateShannonEntropy();
+        ColorGrid.EntropyData data = grid.calculateCellTransitions();
 
         double maxVert = 0, maxHorz = 0;
         for(double d : data.vert) { maxVert = Math.max(maxVert, d); }

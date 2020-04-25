@@ -2,7 +2,7 @@ package gen.grid;
 
 import gen.primitives.Colour;
 import gen.primitives.Pos;
-import gen.priors.abstraction.Symmetry;
+import gen.priors.abstraction.*;
 import gen.priors.adt.Array;
 
 import java.util.*;
@@ -12,6 +12,15 @@ public class ColorGrid implements Grid<Colour>
 {
     public Pos pos, arrayPos;
     public int width, height;
+
+    Array<ColorGrid> colorChildren;
+    Array<Mask> monoChildren;
+
+    @Override
+    public ColorGrid cloneInstance(int w, int h)
+    {
+        return new ColorGrid(board, w, h, pos, arrayPos, brush, background);
+    }
 
     Grid board;
     Colour brush, background;
@@ -39,27 +48,33 @@ public class ColorGrid implements Grid<Colour>
         }
     }
 
-    @Override
-    public Set<Symmetry> getSymmetries()
-    {
-        // TODO
-        return Collections.emptySet();
-    }
-
-    public ColorGrid(Grid board, int width, int height)
+    public ColorGrid(Grid board, int width, int height, Pos pos, Pos arraypos, Colour brush, Colour background)
     {
         this.board = board == null ? this : board;
         this.width = width;
         this.height = height;
+        this.brush = brush;
+        this.arrayPos = arraypos.copy();
+        this.pos = pos.copy();
         grid = new Colour[height][width];
 
+        this.background = background;
         set(Colour.None);
+    }
 
-        brush = Colour.None;
-        background = Colour.Black;
+    public ColorGrid(Grid board, int width, int height, Pos pos, Pos arraypos, Colour brush)
+    {
+        this(board, width, height, pos, arraypos, brush, Colour.Black);
+    }
 
-        pos = new Pos(0, 0);
-        arrayPos = new Pos(0, 0);
+    public ColorGrid(ColorGrid grid)
+    {
+        this(grid.board, grid.width, grid.height, grid.pos, grid.arrayPos, grid.brush);
+    }
+
+    public ColorGrid(Grid board, int width, int height)
+    {
+        this(board, width, height, new Pos(0, 0), new Pos(0, 0), Colour.None);
     }
 
     public ColorGrid(Grid board, String bitString, int width)
@@ -67,9 +82,9 @@ public class ColorGrid implements Grid<Colour>
         this(board, width, bitString.length() / width);
 
         int charIdx  = 0;
-        for(int i = 0; i < width; ++i)
+        for(int j = 0; j < height; ++j)
         {
-            for(int j = 0; j < height; ++j)
+            for(int i = 0; i < width; ++i)
             {
                 char ch = charIdx < bitString.length() ? bitString.charAt(charIdx) : '0';
 
@@ -155,12 +170,42 @@ public class ColorGrid implements Grid<Colour>
         return grid[y][x] == null || grid[y][x] == Colour.None || grid[y][x] == background;
     }
 
+    @Override
+    public Map<AttrNames, Attribute> getAttributes()
+    {
+        Map<AttrNames, Attribute> attributes = new HashMap<>();
+
+        Set<Symmetry> symmetries = getSymmetries();
+        attributes.put(AttrNames.SymmetrySet, new ValueCategoricalAttr<>(symmetries));
+        attributes.put(AttrNames.ShapeHash, new ShapeHashAttr(this));
+        attributes.put(AttrNames.X, new ValueCategoricalAttr<>(pos.x));
+        attributes.put(AttrNames.Y, new ValueCategoricalAttr<>(pos.y));
+        attributes.put(AttrNames.W, new ValueCategoricalAttr<>(width));
+        attributes.put(AttrNames.H, new ValueCategoricalAttr<>(height));
+        attributes.put(AttrNames.Colour, new ValueCategoricalAttr<>(getBrush()));
+        attributes.put(AttrNames.Background, new ValueCategoricalAttr<>(getBackground()));
+        attributes.put(AttrNames.Centre, new ValueCategoricalAttr<>(getPos()));
+
+        int positive = countPositive();
+        attributes.put(AttrNames.NumNegative, new ValueCategoricalAttr<>(width * height - positive));
+        attributes.put(AttrNames.NumPositive, new ValueCategoricalAttr<>(positive));
+
+        return attributes;
+    }
+
     public Mask positive()
     {
-        Mask mask = new Mask(getBoard(), width, height);
-        mask.setPos(pos.copy());
-        mask.set(false);
+        Mask mask = new Mask(getBoard(), width, height, pos, false);
+        Array<Pos> arr = Pos.permute(width, height);
+        for(Pos p : arr)
+        {
+            if(isEmpty(p))
+                continue;
 
+            mask.paint(p);
+        }
+
+        /*
         for(int i = 0; i < width; ++i)
         {
             for(int j = 0; j < height; ++j)
@@ -172,31 +217,31 @@ public class ColorGrid implements Grid<Colour>
                 mask.paint(i, j);
             }
         }
+        */
 
         return mask;
     }
 
-    public Array colorSplit()
+    public Array<Mask> colorSplit()
     {
-        Array array = new Array();
+        Array<Mask> array = new Array();
         Map<Colour, Mask> colourToMask = new HashMap<>();
 
-        for(int i = 0; i < width; ++i)
+        Array<Pos> arr = Pos.permute(width, height);
+        for(Pos p : arr)
         {
-            for(int j = 0; j < height; ++j)
+            if(isNotEmpty(p))
             {
-                if(isNotEmpty(i, j))
-                {
-                    Colour c = get(i, j);
-                    Mask m = colourToMask.get(c);
-                    if(m == null)
-                    {
-                        m = new Mask(board, width, height, c);
-                        colourToMask.put(c, m);
-                    }
+                Colour c = get(p);
+                Mask m = colourToMask.get(c);
 
-                    m.paint(i, j);
+                if(m == null)
+                {
+                    m = new Mask(board, width, height, pos, c);
+                    colourToMask.put(c, m);
                 }
+
+                m.paint(p);
             }
         }
 
@@ -251,6 +296,17 @@ public class ColorGrid implements Grid<Colour>
         if(colorToUse == Colour.None)
             colorToUse = getBoard().getBrush();
 
+        Array<Pos> arr = Pos.permute(grid.getWidth(), grid.getHeight());
+        for(Pos p : arr)
+        {
+            Pos pp = p.plus(pos);
+
+            if(inBounds(pp))
+                if(grid.get(p))
+                    set(pp, colorToUse);
+        }
+
+        /*
         for(int i = 0; i < grid.getWidth(); ++i)
         {
             for(int j = 0; j < grid.getHeight(); ++j)
@@ -265,23 +321,12 @@ public class ColorGrid implements Grid<Colour>
                 }
             }
         }
+        */
     }
 
-    public void draw(Mask grid, Pos pos)
-    {
-        draw(grid, pos, grid.brush);
-    }
-
-    public void draw(Mask grid, Colour c)
-    {
-        draw(grid, grid.pos, c);
-    }
-
-    public void draw(Mask grid)
-    {
-        Pos pos = grid.getPos();
-        draw(grid, pos);
-    }
+    public void draw(Mask grid, Pos pos)    { draw(grid, pos, grid.brush);  }
+    public void draw(Mask grid, Colour c)   { draw(grid, grid.pos, c);      }
+    public void draw(Mask grid)             { draw(grid, grid.getPos());    }
 
     @Override
     public String toString()
@@ -292,7 +337,7 @@ public class ColorGrid implements Grid<Colour>
         {
             for(int x = 0; x < width; ++x)
             {
-                builder.append(grid[y][x].toString(), 0, 3);
+                builder.append(grid[y][x].ordinal());
                 builder.append("\t");
             }
 
@@ -351,51 +396,46 @@ public class ColorGrid implements Grid<Colour>
         for(int i = 0; i < width; ++i)
             for(int j = 0; j < height; ++j)
                 copy.set(i, j, get(i, j));
+
         copy.brush = brush;
         copy.pos = pos;
         copy.arrayPos = arrayPos;
+
         return copy;
     }
 
-    public Array shapesDiag() { return shapes(Pos.neighboursDiag); }
-    public Array shapes() { return shapes(Pos.neighbours); }
+    public Array<Mask> shapesDiag()   { return shapes(Pos.neighboursDiag); }
+    public Array<Mask> shapes()       { return shapes(Pos.neighbours); }
 
-    public Array shapes(Pos[] neighbours)
+    public Array<Mask> shapes(Pos[] neighbours)
     {
-        Array splitByColor = colorSplit();
-        Array array = new Array();
+        Array<Mask> splitByColor = colorSplit();
+        Array shapes = new Array();
 
-        for(Object obj : splitByColor)
+        for(Mask m : splitByColor)
         {
-            Mask m = (Mask) obj;
             Mask visited = m.copy();
+            Array<Pos> arr = Pos.permute(m.getWidth(), m.getHeight());
 
-            for(int i = 0; i < m.getWidth(); ++i)
+            for(Pos p : arr)
             {
-                for(int j = 0; j < m.getHeight(); ++j)
+                if(visited.isNotEmpty(p))
                 {
-                    if(visited.isNotEmpty(i, j))
-                    {
-                        List<Pos> connected = new ArrayList<>();
-                        addConnected(new Pos(i, j), visited, connected, neighbours);
+                    List<Pos> connected = new ArrayList<>();
+                    addConnected(p, visited, connected, neighbours);
 
-                        Mask shape = new Mask(board, connected);
-                        shape.setBrush(m.getBrush());
-                        array.add(shape);
-                    }
+                    Mask shape = new Mask(board, connected);
+                    shape.setBrush(m.getBrush());
+                    shape.setPos(shape.getPos().plus(m.getPos()));
+                    shapes.add(shape);
                 }
             }
         }
 
-        return array;
+        return shapes;
     }
 
-    private void addConnectedDiag(Pos p, Mask visited, List<Pos> connected)
-    {
-        addConnected(p, visited, connected, Pos.neighboursDiag);
-    }
-
-    private void addConnected(Pos p, Mask visited, List<Pos> connected, Pos[] neighbours)
+    private void addConnected(final Pos p, Mask visited, List<Pos> connected, Pos[] neighbours)
     {
         visited.set(p, false);
         connected.add(p);
@@ -404,7 +444,7 @@ public class ColorGrid implements Grid<Colour>
         {
             Pos moved = p.plus(d);
             if(visited.isNotEmpty(moved))
-                addConnectedDiag(moved, visited, connected);
+                addConnected(moved, visited, connected, neighbours);
         }
     }
 
@@ -474,20 +514,60 @@ public class ColorGrid implements Grid<Colour>
         return entropy;
     }
 
-    public static void main(String[] args)
+    public EntropyData calculateCellTransitions()
     {
-        ColorGrid grid = new ColorGrid(null, "102394856109341093461039418341236041000000000008748390123491049384710234817341", 9);
-        ColorGrid.EntropyData entropy = grid.calculateShannonEntropy();
+        EntropyData data = new EntropyData(width, height);
 
-        System.out.println("vert:");
-        for(int i = 0; i < entropy.vert.length; ++i)
-            System.out.println(entropy.vert[i]);
+        for(int j = 0; j < height; ++j)
+        {
+            int num = 0;
+            Colour last = get(0, j);
 
-        System.out.println("horz:");
-        for(int i = 0; i < entropy.horz.length; ++i)
-            System.out.println(entropy.horz[i]);
+            for(int i = 1; i < width; ++i)
+            {
+                Colour curr = get(i, j);
+                if(curr != last)
+                    ++num;
+                last = curr;
+            }
+            data.vert[j] = num / (double) width;
+        }
 
-        System.out.println("Meta vert: " + entropy.metaVert);
-        System.out.println("Meta horz: " + entropy.metaHorz);
+        for(int i = 0; i < width; ++i)
+        {
+            int num = 0;
+            Colour last = get(i, 0);
+
+            for(int j = 1; j < height; ++j)
+            {
+                Colour curr = get(i, j);
+                if(curr != last)
+                    ++num;
+                last = curr;
+            }
+
+            data.horz[i] = num / (double) height;
+        }
+
+        double last = data.vert[0];
+        for(int i = 1; i < data.vert.length; ++i)
+        {
+            if(data.vert[i] != last)
+                ++data.metaVert;
+            last = data.vert[i];
+        }
+
+        last = data.horz[0];
+        for(int i = 1; i < data.horz.length; ++i)
+        {
+            if(data.horz[i] != last)
+                ++data.metaHorz;
+            last = data.horz[i];
+        }
+
+        data.metaVert /= (double) data.vert.length;
+        data.metaHorz /= (double) data.horz.length;
+
+        return data;
     }
 }

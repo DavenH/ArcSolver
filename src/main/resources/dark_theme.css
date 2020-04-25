@@ -76,3 +76,7 @@
     -fx-font-size: 11pt;
     -fx-text-fill: gray;
 }
+.scroll-pane .scroll-bar:vertical {
+    -fx-unit-increment: 10 ;
+    -fx-block-increment: 50 ;
+}

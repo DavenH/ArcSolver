@@ -55,19 +55,24 @@ public class Dsl
         {
             Token offendor = re.getOffendingToken();
             errorListener.syntaxError(re.getRecognizer(), null, offendor.getLine(), offendor.getStartIndex(), re.getMessage(), re);
+
+            re.printStackTrace();
         }
         catch (InterpreterException e)
         {
             errorListener.syntaxError(parser, null, e.line, e.offset, e.getMessage(), null);
+            e.printStackTrace();
         }
         catch (RuntimeException e)
         {
             errorListener.syntaxError(parser, null, -1, -1, e.getMessage(), null);
+            e.printStackTrace();
         }
         catch (Throwable e)
         {
             System.err.println("Throwable");
             errorListener.syntaxError(parser, null, -1, -1, e.getMessage(), null);
+            e.printStackTrace();
         }
 
         return visitor.getBoard();

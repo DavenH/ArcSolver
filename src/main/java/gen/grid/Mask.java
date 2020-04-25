@@ -2,12 +2,13 @@ package gen.grid;
 
 import gen.primitives.Colour;
 import gen.primitives.Pos;
-import gen.priors.abstraction.Symmetry;
+import gen.priors.abstraction.*;
 import gen.priors.adt.Array;
+import gen.priors.spatial.Compass;
 
-import java.util.Collections;
-import java.util.HashSet;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.function.BinaryOperator;
 
@@ -20,6 +21,8 @@ public class Mask implements Grid<Boolean>
     protected Colour brush;
     Grid board;
 
+    protected ShapeAttr.Shape mostSpecifiedShape = ShapeAttr.Shape.Other;
+
     @Override public int getWidth()        { return width; }
     @Override public int getHeight()       { return height; }
     @Override public Grid getBoard()       { return board; }
@@ -30,30 +33,14 @@ public class Mask implements Grid<Boolean>
     @Override public void setPos(Pos pos)  { this.pos = pos; }
 
     @Override
-    public Set<Symmetry> getSymmetries()
+    public Mask cloneInstance(int w, int h)
     {
-        Set<Symmetry> syms = new HashSet<>();
-
-        for(int i = 0; i < width; ++i)
-        {
-            for(int j = 0; j < height; ++j)
-            {
-
-            }
-        }
-
-        if(equals(reflect(Symmetry.Horz)))
-        {
-            syms.add(Symmetry.Horz);
-        }
-
-        return Collections.emptySet();
+        return new Mask(board, w, h, pos, brush);
     }
 
     public Mask(Mask m)
     {
-        this(m.getBoard(), m.getWidth(), m.getHeight(), m.getBrush());
-        this.pos = m.pos.copy();
+        this(m.getBoard(), m.getWidth(), m.getHeight(), m.getPos(), m.getBrush());
     }
 
     public Mask(Grid board, String bitString, int width)
@@ -65,7 +52,7 @@ public class Mask implements Grid<Boolean>
         {
             for(int i = 0; i < width; ++i)
             {
-                char ch = bitString.charAt(charIdx);
+                char ch = charIdx < bitString.length() ? bitString.charAt(charIdx) : '0';
 
                 int colorIndex = ch - '0';
                 set(i, j, colorIndex != 0);
@@ -75,26 +62,10 @@ public class Mask implements Grid<Boolean>
         }
     }
 
-    public Mask(Grid board, int width, int height)
-    {
-        this(board, width, height, Colour.None);
-    }
-
-    public Mask(Grid board, int width, int height, Colour color)
-    {
-        this(board, width, height, new Pos(0, 0), color);
-    }
-
-    public Mask(Grid board, int width, int height, Pos pos)
-    {
-        this(board, width, height, pos, Colour.None);
-    }
-
-    public Mask(Grid board, int width, int height, Pos pos, boolean value)
-    {
-        this(board, width, height, pos);
-        set(value);
-    }
+    public Mask(Grid board, int width, int height)                          { this(board, width, height, Colour.None);          }
+    public Mask(Grid board, int width, int height, Colour color)            { this(board, width, height, new Pos(0, 0), color); }
+    public Mask(Grid board, int width, int height, Pos pos)                 { this(board, width, height, pos, Colour.None);     }
+    public Mask(Grid board, int width, int height, Pos pos, boolean value)  { this(board, width, height, pos); set(value);      }
 
     public Mask(Grid board, int width, int height, Pos pos, Colour color)
     {
@@ -125,14 +96,124 @@ public class Mask implements Grid<Boolean>
         pos = new Pos(minX, minY);
 
         for(Pos p : cells)
-            paint(p.x - minX, p.y - minY);
+            paint(p.minus(pos));
+    }
+
+    public static Mask square(Grid board, int size, Pos pos) { return square(board, size, pos, Colour.None); }
+    public static Mask square(Grid board, int size, Pos pos, Colour c)
+    {
+        Mask m = new Mask(board, size, size, pos, c);
+        m.set(true);
+        m.mostSpecifiedShape = ShapeAttr.Shape.Square;
+        return m;
+    }
+
+    public static Mask rect(Grid board, int width, int height) { return rect(board, width, height, new Pos(0, 0), Colour.None); }
+    public static Mask rect(Grid board, int width, int height, Pos pos) { return rect(board, width, height, pos, Colour.None); }
+    public static Mask rect(Grid board, int width, int height, Pos pos, Colour c)
+    {
+        Mask m = new Mask(board, width, height, pos, c);
+        m.set(true);
+        m.mostSpecifiedShape = ShapeAttr.Shape.Rectangle;
+        return m;
+    }
+
+    public static Mask line(Grid board, Compass compass, int length, Pos pos) { return line(board, compass, length, 1, pos, Colour.None); }
+    public static Mask line(Grid board, Compass compass, int length, Pos pos, Colour c) { return line(board, compass, length, 1, pos, c); }
+    public static Mask line(Grid board, Compass compass, int length, int thickness, Pos pos) { return line(board, compass, length, thickness, pos, Colour.None); }
+    public static Mask line(Grid board, Compass compass, int length, int thickness, Pos pos, Colour c)
+    {
+        int w = compass.isHorizontal() ? length : thickness;
+        int h = compass.isHorizontal() ? thickness : length;
+
+        Mask m = new Mask(board, w, h, pos, c);
+        m.set(true);
+        m.mostSpecifiedShape = ShapeAttr.Shape.Line;
+        return m;
+    }
+
+    public static Mask dot(Grid board, Pos pos) { return dot(board, pos, Colour.None); }
+    public static Mask dot(Grid board, Pos pos, Colour c)
+    {
+        Mask m = new Mask(board, 1, 1, pos, c);
+        m.set(true);
+        m.mostSpecifiedShape = ShapeAttr.Shape.Dot;
+        return m;
+    }
+
+    public Map<AttrNames, Attribute> getAttributes()
+    {
+        Map<AttrNames, Attribute> attributes = new HashMap<>();
+
+        Set<Symmetry> symmetries = getSymmetries();
+        attributes.put(AttrNames.SymmetrySet, new ValueCategoricalAttr<>(symmetries));
+        specifyShape();
+
+        attributes.put(AttrNames.Shape, new ShapeAttr(mostSpecifiedShape));
+        attributes.put(AttrNames.ShapeHash, new ShapeHashAttr(this));
+        attributes.put(AttrNames.X, new ValueCategoricalAttr<>(pos.x));
+        attributes.put(AttrNames.Y, new ValueCategoricalAttr<>(pos.y));
+        attributes.put(AttrNames.W, new ValueCategoricalAttr<>(width));
+        attributes.put(AttrNames.H, new ValueCategoricalAttr<>(height));
+        attributes.put(AttrNames.Colour, new ValueCategoricalAttr<>(getBrush()));
+        attributes.put(AttrNames.Centre, new ValueCategoricalAttr<>(getPos()));
+
+        int positive = countPositive();
+        attributes.put(AttrNames.NumNegative, new ValueCategoricalAttr<>(width * height - positive));
+        attributes.put(AttrNames.NumPositive, new ValueCategoricalAttr<>(positive));
+
+        return attributes;
+    }
+
+    private void specifyShape()
+    {
+        if(mostSpecifiedShape == ShapeAttr.Shape.Other)
+        {
+            boolean filled = isFilled();
+            if(filled)
+            {
+                // must be at least a rectangle
+                if(width == height)
+                    mostSpecifiedShape = width == 1 ? ShapeAttr.Shape.Dot : ShapeAttr.Shape.Square;
+
+                else if(width == 1 || height == 1)
+                    mostSpecifiedShape = ShapeAttr.Shape.Line;
+
+                else
+                    mostSpecifiedShape = ShapeAttr.Shape.Rectangle;
+            }
+            else
+            {
+                // noise detection?
+                if(false)
+                    mostSpecifiedShape = ShapeAttr.Shape.Noise;
+                else
+                    mostSpecifiedShape = ShapeAttr.Shape.Other;
+            }
+        }
+    }
+
+    private boolean isFilled()
+    {
+        for(int i = 0; i < width; ++i)
+            for(int j = 0; j < height; ++j)
+                if(isEmpty(i, j))
+                    return false;
+
+        return true;
     }
 
     public void resize(int width, int height)
     {
         this.width = width;
         this.height = height;
+
         grid = (width <= 0 || height <= 0) ? new boolean[1][1] : new boolean[height][width];
+    }
+
+    public Mask within()
+    {
+        return neg(perimeter()).trim();
     }
 
     public Mask doOp(Mask mask, BinaryOperator<Boolean> op)
@@ -143,15 +224,15 @@ public class Mask implements Grid<Boolean>
         int topmost    = Math.max(pos.y + height, mask.pos.y + mask.height);
 
         Mask product = new Mask(getBoard(),
-                                rightmost - leftmost + 1,
-                                topmost - bottommost + 1,
+                                rightmost - leftmost,
+                                topmost - bottommost,
                                 new Pos(leftmost, bottommost),
                                 brush);
 
         Pos thisDelta = product.pos.minus(pos);
         Pos thatDelta = product.pos.minus(mask.pos);
 
-        Array arr = Pos.permute(width, height);
+        Array arr = Pos.permute(product.width, product.height);
         for(Object obj : arr)
         {
             Pos p = (Pos) obj;
@@ -234,72 +315,17 @@ public class Mask implements Grid<Boolean>
         return this;
     }
 
-    public Mask rotate(int quartersCW)
+    public Array<Pos> positiveToArray()
     {
-        Mask m;
-        quartersCW = quartersCW % 4;
+        Array<Pos> arr = Pos.permute(width, height);
+        Array<Pos> positive = new Array<>();
 
-        if(quartersCW == 2)
-        {
-            m = new Mask(this);
-            for(int i = 0; i < width; ++i)
-                for(int j = 0; j < height; ++j)
-                    m.set(i, j, get(width - 1 - i, height - 1 - j));
-        }
-        else
-        {
-            m = new Mask(board, getHeight(), getWidth(), brush);
-            m.pos = pos.copy();
+        for(Pos p : arr)
+            if(isNotEmpty(p))
+                positive.add(p);
 
-            if(quartersCW == 1)
-            {
-                for(int i = 0; i < width; ++i)
-                    for(int j = 0; j < height; ++j)
-                        m.set(j, i, get(i, height - 1 - j));
-            }
-            else if(quartersCW == 3)
-            {
-                for(int i = 0; i < width; ++i)
-                    for(int j = 0; j < height; ++j)
-                        m.set(j, i, get(width - 1 - i, j));
-            }
-        }
-
-        return m;
+        return positive;
     }
-
-    public Array toArray()
-    {
-        Array arr = new Array();
-        for(int i = 0; i < width; ++i)
-            for(int j = 0; j < height; ++j)
-                if(isNotEmpty(i, j))
-                    arr.add(new Pos(i, j));
-        return arr;
-    }
-
-    public Mask reflect(Symmetry sym)
-    {
-        Mask m= (sym.isDiagonal()) ?
-            new Mask(board, getHeight(), getWidth(), pos, brush) :
-            new Mask(this);
-
-        Array arr = Pos.permute(width, height);
-        for(Object obj : arr)
-        {
-            Pos p = (Pos) obj;
-            switch (sym)
-            {
-                case Vert:      m.set(p,             get(p.fromTop(height)));
-                case Horz:      m.set(p,             get(p.fromRight(width)));
-                case Diag:      m.set(p.transpose(), get(p));
-                case NegDiag:   m.set(p.transpose(), get(p.fromTopRight(width, height)));
-            }
-        }
-
-        return m;
-    }
-
 
     public void flood(Pos xy) { flood(xy.x, xy.y); }
 
@@ -330,6 +356,7 @@ public class Mask implements Grid<Boolean>
 
 
     public void paint(Pos pos) { paint(pos.x, pos.y); }
+
     public void paint(int x, int y)
     {
         if(! inBounds(x, y))
@@ -394,53 +421,13 @@ public class Mask implements Grid<Boolean>
             builder.append(System.lineSeparator());
         }
         builder.append(getPos().toString());
+        builder.append("\t").append(brush);
+
         return builder.toString();
     }
 
     public void setBrush(Colour brush)
     {
         this.brush = brush;
-    }
-
-
-    public static void main(String[] args)
-    {
-        ColorGrid grid = new ColorGrid(null,
-                                       "0000000000" +
-                                       "0001224000" +
-                                       "0001144000" +
-                                       "0001554000" +
-                                       "0022266600" +
-                                       "0022266000" +
-                                       "0022266000" +
-                                       "0077766000"
-                , 10);
-
-        ColorGrid board = new ColorGrid(null, 10, 10);
-        Mask m = new Mask(board, "01011111", 4);
-        Mask m2 = new Mask(board, "10101100", 4);
-        Mask m3 = new Mask(board, "01011101", 4);
-        m.setPos(new Pos(3,3));
-
-        Mask around = m.around();
-        Mask above = m.above();
-        Mask below = m.below();
-
-        board.draw(m, Colour.Red);
-        board.draw(above, Colour.Green);
-//        board.draw(around, Colour.Blue);
-        board.draw(below, Colour.Yellow);
-
-        System.out.println("Board:\n" + board.toString());
-        System.out.println("Around\n" + around.toString());
-        System.out.println("Above\n" + above.toString());
-        System.out.println("--------------------\n");
-        System.out.println("\nM2\n" + m2.toString());
-        System.out.println("\nM3\n" + m3.toString());
-        System.out.println("\nOr M2 M3\n" + m2.or(m3).toString());
-        System.out.println("\nAnd M2 M3\n" + m2.and(m3).toString());
-        System.out.println("\nXOR M2 M3\n" + m2.xor(m3).toString());
-        System.out.println("\nnand M2 M3\n" + m2.nand(m3).toString());
-        System.out.println("\nneg M2 M3\n" + m2.neg(m3).toString());
     }
 }

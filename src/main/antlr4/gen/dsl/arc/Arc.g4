@@ -49,17 +49,16 @@ arrayAccess : ID '[' expr ']';
 member : ID | methodInvocation | arrayAccess ;
 memberAccess : member | memberAccess '.' member | namespaceAccess ;
 namespaceAccess : ID '::' member;
-methodInvocation : ID '(' paramList? ')' ;
-
+methodInvocation : ID '(' (paramList? | lambda) ')' ;
+lambda : ID '->' expr;
 // control
 foreachBlock : 'foreach' ID 'in' generator block ;
 ifBlock : 'if' expr block elseIfBlock* elseBlock?;
 elseIfBlock : 'else if' expr block;
 elseBlock   : 'else' block ;
 whileBlock  : WHILE expr block;
-//anonBlock   : 'scoped' block;
-
-methodDef : ID (OBRACE paramList CBRACE)? ':=' block;
+methodDef : ID ':=' varList? block;
+varList : ID (',' ID)*;
 
 expr :
     generator

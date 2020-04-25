@@ -4,22 +4,23 @@ import gen.grid.ColorGrid;
 import gen.primitives.Pos;
 import gen.priors.abstraction.Attribute;
 import gen.priors.abstraction.AttributeExtractor;
+import gen.priors.abstraction.ComparableAttr;
 
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Map;
 
-public class Array extends ArrayList
+public class Array<T> extends ArrayList<T>
 {
-    public Object last()
+    public T last()
     {
         return get(size() - 1);
     }
 
-    public Array firstEq(AttributeExtractor attr)
+    public Array<T> firstEq(AttributeExtractor attr)
     {
-        Array arr = new Array();
+        Array<T> arr = new Array();
         Attribute lastAttr = attr.extract(first());
 
         for(int i = 1; i < size(); ++i)
@@ -45,17 +46,43 @@ public class Array extends ArrayList
         return arr;
     }
 
-    public Object first()
+    public T first()
     {
         return get(0);
     }
 
-    public void sort(AttributeExtractor f)
+    public void sort(AttributeExtractor attr)
     {
-        sort(Comparator.comparing(f::extract));
+        sort(Comparator.comparing(attr::extract));
     }
 
-    Array groupBy(AttributeExtractor f)
+    public T max(AttributeExtractor extractor)
+    {
+        T maximum = null;
+        ComparableAttr maxAttr = null;
+
+        for(T t : this)
+        {
+            if(maximum == null)
+            {
+                maximum = t;
+                maxAttr = extractor.extract(t);
+            }
+            else
+            {
+                ComparableAttr attr = extractor.extract(t);
+                if(maxAttr.compareTo(attr) < 0)
+                {
+                    maxAttr = attr;
+                    maximum = t;
+                }
+            }
+        }
+
+        return maximum;
+    }
+
+    Array<Array<T>> groupBy(AttributeExtractor f)
     {
         Map<Attribute, Array> map = new HashMap<>();
 
@@ -72,20 +99,20 @@ public class Array extends ArrayList
         return arrays;
     }
 
-    public ColorGrid get(Pos pos)
+    public T get(Pos pos)
     {
-        for(Object o : this)
+        for(T o : this)
         {
             if(o instanceof ColorGrid)
             {
                 if(((ColorGrid) o).arrayPos.equals(pos))
                 {
-                    return (ColorGrid) o;
+                    return o;
                 }
             }
         }
 
-        return null;
+        throw new RuntimeException("Array does not contain color grids, or none have this array position " + pos.toString());
     }
 
     public void filter(AttributeExtractor f)

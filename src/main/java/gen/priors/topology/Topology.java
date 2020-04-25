@@ -11,47 +11,46 @@ public class Topology
 {
     public Array holes(ColorGrid cg) { return holes(cg.positive()); }
 
-    public Array holes(Mask m)
+    public Array<Mask> holes(Mask m)
     {
         Mask visited = m.copy();
-        Array arr = new Array();
+        Array<Mask> arr = new Array<>();
 
         Consumer<Pos> floodIfEmpty = (p) -> {
             if(visited.isEmpty(p))
                 visited.flood(p);
         };
 
-        Array positions = visited.sides().toArray();
+        Array<Pos> sidePositions = visited.sides().positiveToArray();
 
-        for(Object p : positions)
-            floodIfEmpty.accept((Pos) p);
+        for(Pos p : sidePositions)
+            floodIfEmpty.accept(p);
 
         // now, any "empty" squares are guaranteed to be landlocked by positive cells -- return them.
-        for(int i = 0; i < m.getWidth(); ++i)
+        Array<Pos> allPos = Pos.permute(m.getWidth(), m.getHeight());
+        for(Pos p : allPos)
         {
-            for(int j = 0; j < m.getHeight(); ++j)
+            if(visited.isEmpty(p))
             {
-                if(visited.isEmpty(i, j))
-                {
-                    Mask shape = new Mask(m);
-                    Pos xy = new Pos(i, j);
-
-                    addFloodToMask(visited, shape, xy);
-                    arr.add(shape.trim());
-                }
+                Mask shape = new Mask(m);
+                addFloodToMask(visited, shape, p);
+                arr.add(shape.trim());
             }
         }
 
         return arr;
     }
 
-    private void addFloodToMask(Mask visited, Mask toAddTo, Pos xy)
+    private void addFloodToMask(Mask visited, Mask toAddTo, final Pos xy)
     {
         visited.paint(xy);
         toAddTo.paint(xy);
 
         for(Pos pos : Pos.neighbours)
-            if(visited.inBounds(pos) && visited.isEmpty(pos))
-                addFloodToMask(visited, toAddTo, pos);
+        {
+            Pos moved = xy.plus(pos);
+            if(visited.inBounds(moved) && visited.isEmpty(moved))
+                addFloodToMask(visited, toAddTo, moved);
+        }
     }
 }

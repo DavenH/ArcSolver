@@ -1,6 +1,7 @@
 package gen.primitives;
 
 import gen.priors.adt.Array;
+import gen.priors.spatial.Compass;
 
 public class Pos
 {
@@ -9,6 +10,13 @@ public class Pos
             new Pos(1, 0),
             new Pos(0, -1),
             new Pos(0, 1)
+    };
+
+    public static final Pos[] corners = new Pos[] {
+            new Pos(-1, -1),
+            new Pos(1, -1),
+            new Pos(1, -1),
+            new Pos(1, 1)
     };
 
     public static final Pos[] neighboursDiag = new Pos[] {
@@ -31,12 +39,10 @@ public class Pos
         this.y = y;
     }
 
-    public Pos right(int howMuch)   { return plus(howMuch, 0);   }
-    public Pos up(int howMuch)      { return plus(0, howMuch);   }
-    public Pos left(int howMuch)    { return minus(howMuch, 0);  }
-    public Pos down(int howMuch)    { return minus(0, howMuch);  }
-
-    public Pos copy()               { return new Pos(x, y); }
+    public Pos left(Integer howMuch)    { return minus(howMuch, 0);  }
+    public Pos right(Integer howMuch)   { return plus(howMuch, 0);   }
+    public Pos up(Integer howMuch)      { return plus(0, howMuch);   }
+    public Pos down(Integer howMuch)    { return minus(0, howMuch);  }
 
     public Pos plus(Pos d)          { return plus(d.x, d.y); }
     public Pos plus(int x, int y)   { return new Pos(this.x + x, this.y + y); }
@@ -44,9 +50,38 @@ public class Pos
     public Pos minus(int x, int y)  { return plus(-x, -y); }
     public Pos transpose()          { return new Pos(y, x); }
 
+    public Pos copy()               { return new Pos(x, y); }
+
     public String toString()
     {
         return "(" + x + ", " + y + ")";
+    }
+
+    public Compass directionTo(Pos p)
+    {
+        int deltaX = p.x - x;
+        int deltaY = p.y - y;
+
+        if(deltaX < 0)
+        {
+            if(deltaY < 0)  return Compass.SW;
+            if(deltaY == 0)  return Compass.W;
+            if(deltaY > 0)  return Compass.NW;
+        }
+        else if(deltaX == 0)
+        {
+            if(deltaY < 0)  return Compass.S;
+            if(deltaY == 0)  throw new RuntimeException("Cannot make a direction to same location!");
+            if(deltaY > 0)  return Compass.N;
+        }
+        else if(deltaX > 0)
+        {
+            if(deltaY < 0)  return Compass.SE;
+            if(deltaY == 0)  return Compass.E;
+            if(deltaY > 0)  return Compass.NE;
+        }
+
+        throw new RuntimeException("Impossible state " + toString() + " " + p.toString());
     }
 
     public int get(int index)
@@ -54,9 +89,9 @@ public class Pos
         return index == 0 ? x : y;
     }
 
-    public static Array permute(int n, int m)
+    public static Array<Pos> permute(int n, int m)
     {
-        Array arr = new Array();
+        Array<Pos> arr = new Array<>();
 
         for(int i = 0; i < n; ++i)
             for(int j = 0; j < m; ++j)

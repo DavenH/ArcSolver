@@ -29,6 +29,7 @@ public class Visitor extends ArcBaseVisitor<Object>
     private Map<String, Method> localMethods = new HashMap<>();
     private Map<String, Object> foreachVarBindName = new HashMap<>();
     private Map<String, Visitor> namespaces = new HashMap<>();
+//    private Map<Class, Class> toPrimitive = new HashMap<>();
 
     static Class<Integer> ci = Integer.class;
     static Class<Object> co = Object.class;
@@ -78,8 +79,10 @@ public class Visitor extends ArcBaseVisitor<Object>
 
             addLocalMethod("pos|java.lang.Integer|java.lang.Integer", Visitor.class.getMethod("pos", ci, ci));
 
-            addLocalMethod("mask|java.lang.String|java.lang.Integer|gen.attr.Colour", Visitor.class.getMethod("mask", cs, ci, Colour.class));
             addLocalMethod("mask|java.lang.String|java.lang.Integer", Visitor.class.getMethod("mask", cs, ci));
+            addLocalMethod("mask|java.lang.String|java.lang.Integer|gen.primitives.Colour", Visitor.class.getMethod("mask", cs, ci, Colour.class));
+//            public Mask mask(String bitString, Integer width, Colour colour)
+
 
             addLocalMethod("line|java.lang.Integer|gen.priors.spatial.Compass", Visitor.class.getMethod("line", ci, Compass.class));
             addLocalMethod("line|gen.primitives.Pos|java.lang.Integer|gen.priors.spatial.Compass", Visitor.class.getMethod("line", Pos.class, ci, Compass.class));
@@ -88,7 +91,7 @@ public class Visitor extends ArcBaseVisitor<Object>
             addLocalMethod("square|gen.primitives.Pos|java.lang.Integer", Visitor.class.getMethod("square", Pos.class, ci));
 
             addLocalMethod("dot|gen.primitives.Pos", Visitor.class.getMethod("dot", Pos.class));
-            addLocalMethod("dot|gen.primitives.Pos|gen.attr.Colour", Visitor.class.getMethod("dot", Pos.class, Colour.class));
+            addLocalMethod("dot|gen.primitives.Pos|gen.primitives.Colour", Visitor.class.getMethod("dot", Pos.class, Colour.class));
 
             addLocalMethod("rect|java.lang.Integer|java.lang.Integer", Visitor.class.getMethod("rect", ci, ci));
             addLocalMethod("rect|java.lang.Integer|gen.primitives.Pos|java.lang.Integer", Visitor.class.getMethod("rect", Pos.class, ci, ci));
@@ -159,13 +162,11 @@ public class Visitor extends ArcBaseVisitor<Object>
     }
 
     public void fill(Colour c)                  { log("filling board"); board.fill(c); }
-
     public void draw(ColorGrid g)               { log("drawing colorgrid to board");        board.draw(g);  }
     public void draw(Mask mask)                 { log("drawing mask to board");             board.draw(mask); }
     public void draw(Mask g, Colour c)          { log("drawing mask,clr to board");         board.draw(g, c);   }
-    public void draw(Mask g, Pos p, Colour c)   { log("drawing mask,pos,clr to board");     board.draw(g, p, c); }
     public void draw(Mask g, Pos p)             { log("drawing mask,pos to board");         board.draw(g, p); }
-    public void draw(Rectangle rectangle)       { log("drawing rect to board");             board.draw(rectangle);  }
+    public void draw(Mask g, Pos p, Colour c)   { log("drawing mask,pos,clr to board");     board.draw(g, p, c); }
 
     public void draw(Array grids)
     {
@@ -247,85 +248,25 @@ public class Visitor extends ArcBaseVisitor<Object>
 
     public Mask mask(String bitString, Integer width, Colour colour)
     {
-        log("making new mask,str,wid,clr");
-
-        Mask grid = mask(bitString, width);
+        Mask grid = mask(bitString, width, colour);
         grid.setBrush(colour);
         return grid;
     }
 
-    public Mask mask(String bitString, Integer width)
-    {
-        log("making new mask,str,wid");
+    public Pos pos(Integer x, Integer y)                {   return new Pos(x, y);   }
+    public Mask mask(String bitString, Integer width)   {   return new Mask(board, bitString, width);   }
+    public Mask rect(Integer width, Integer height)     {   return Mask.rect(board, width, height, new Pos(0, 0)); }
+    public Mask rect(Pos xy, Integer width, Integer height) {   return Mask.rect(board, width, height, xy); }
+    public Mask rect(Pos xy, Integer w, Integer h, Colour c) {   return Mask.rect(board, w, h, xy, c); }
+    public Mask square(Pos xy, Integer size, Colour c)  {   return Mask.square(board, size, xy, c); }
+    public Mask square(Pos xy, Integer size)            {   return Mask.square(board, size, xy); }
+    public Mask square(Integer size)                    {   return Mask.square(board, size, new Pos(0, 0)); }
+    public Mask dot(Pos xy)                             {   return Mask.dot(board, xy, Colour.None); }
+    public Mask dot(Pos xy, Colour c)                   {   return Mask.dot(board, xy, c); }
 
-        return new Mask(board, bitString, width);
-    }
-
-    public Pos pos(Integer x, Integer y)
-    {
-        log("making new pos,x,y");
-        return new Pos(x, y);
-    }
-
-    public Rectangle rect(Integer width, Integer height)
-    {
-        log("making new rect,w,h");
-        return new Rectangle(board, new Pos(0, 0), width, height);
-    }
-
-    public Rectangle rect(Pos xy, Integer width, Integer height)
-    {
-        log("making new rect,pos,w,h");
-        Rectangle r = new Rectangle(board, xy, width, height);
-        return r;
-    }
-
-    public Rectangle square(Integer width)
-    {
-        log("making new square,w");
-        return new Square(board, width);
-    }
-
-    public Rectangle square(Pos pos, Integer width)
-    {
-        log("making new square,w");
-        Square s =  new Square(board, pos, width);
-        return s;
-    }
-
-    public Dot dot(Pos xy)
-    {
-        log("making new dot,xy");
-        return new Dot(board, xy);
-    }
-
-    public Dot dot(Pos xy, Colour c)
-    {
-        log("making new dot,xy,clr");
-        Dot dot = dot(xy);
-        dot.setBrush(c);
-        return dot;
-    }
-
-    public ColorGrid grid(Integer scale)
-    {
-        log("making new grid,scale");
-
-        return new ColorGrid(board, scale, scale);
-    }
-
-    public ColorGrid grid(Integer width, Integer height)
-    {
-        log("making new grid,width,height");
-
-        return new ColorGrid(board, width, height);
-    }
-
-    public ColorGrid grid(String bitString, Integer width)
-    {
-        log("making new grid,str,wid");
-        return new ColorGrid(board, bitString, width);
-    }
+    public ColorGrid grid(Integer scale)                {   return new ColorGrid(board, scale, scale);  }
+    public ColorGrid grid(Integer w, Integer h)         {   return new ColorGrid(board, w, h);  }
+    public ColorGrid grid(String bitString, Integer width)  {   return new ColorGrid(board, bitString, width);  }
 
     public Array layout(Integer columns, Integer rows, Integer scale, Integer gap)
     {
@@ -452,10 +393,14 @@ public class Visitor extends ArcBaseVisitor<Object>
                                      "No method" + (instance != null ? " on object " + instance.getClass().getName() : "")
                                      + " associated with name '" + methodName + "'" + params);
         }
+        catch (NoSuchMethodException e)
+        {
+            Token startToken = ctx.getStart();
+            throw new InterpreterException(startToken, "No such method: " + e.getMessage());
+        }
         catch (Exception e)
         {
             Token startToken = ctx.getStart();
-
             throw new InterpreterException(startToken, e.getMessage());
         }
     }
@@ -463,7 +408,7 @@ public class Visitor extends ArcBaseVisitor<Object>
     @Override
     public Object visitMethodInvocation(ArcParser.MethodInvocationContext ctx)
     {
-        System.out.println("methinvk: " + ctx.getText());
+        System.out.println("methinvoke: " + ctx.getText());
 
         return invokeMethod(null, ctx, this);
     }
@@ -1081,6 +1026,7 @@ public class Visitor extends ArcBaseVisitor<Object>
         StringBuilder builder = new StringBuilder();
         for (int i = 0; i < 4 * n; ++i)
             builder.append(" ");
+
         return builder.toString();
     }
 

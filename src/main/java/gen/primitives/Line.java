@@ -2,6 +2,7 @@ package gen.primitives;
 
 import gen.grid.Grid;
 import gen.grid.Mask;
+import gen.priors.abstraction.ShapeAttr;
 import gen.priors.abstraction.Symmetry;
 import gen.priors.spatial.Vector;
 
@@ -24,6 +25,7 @@ public class Line extends Mask
 
         this.vector = vector;
         this.thickness = thickness;
+        this.mostSpecifiedShape = ShapeAttr.Shape.Line;
     }
 
     public Vector getVector()

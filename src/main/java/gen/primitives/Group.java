@@ -3,6 +3,7 @@ package gen.primitives;
 import gen.grid.ColorGrid;
 import gen.grid.Grid;
 import gen.grid.Mask;
+import gen.priors.adt.Array;
 
 public class Group extends ColorGrid
 {
@@ -31,19 +32,12 @@ public class Group extends ColorGrid
         for (Mask shape : masks)
         {
             Pos xy = shape.getPos();
+            Array<Pos> arr = Pos.permute(shape.getWidth(), shape.getHeight());
 
-            for (int i = 0; i < shape.getWidth(); ++i)
-            {
-                for (int j = 0; j < shape.getHeight(); ++j)
-                {
-                    if(shape.isNotEmpty(i, j))
-                    {
-                        set(i - minX + xy.x,
-                            j - minY + xy.y,
-                            shape.getBrush());
-                    }
-                }
-            }
+            for(Pos p : arr)
+                if(shape.isNotEmpty(p))
+                    set(p.minus(getPos()).plus(xy),
+                        shape.getBrush());
         }
 
         setPos(new Pos(minX, minY));
