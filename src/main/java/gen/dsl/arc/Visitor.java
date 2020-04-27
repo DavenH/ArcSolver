@@ -4,6 +4,7 @@ import gen.grid.ColorGrid;
 import gen.grid.Mask;
 import gen.primitives.*;
 import gen.priors.adt.Array;
+import gen.priors.pattern.Pattern;
 import gen.priors.spatial.Compass;
 import gen.priors.topology.Topology;
 import org.antlr.v4.runtime.Token;
@@ -99,6 +100,7 @@ public class Visitor extends ArcBaseVisitor<Object>
             addGlobalVariable("brush", Colour.None);
             addGlobalVariable("background", Colour.Black);
             addGlobalVariable("topology", new Topology());
+            addGlobalVariable("pattern", new Pattern());
 
             specialVarConsumers.put("brush", (val, token) -> {
                 if(val instanceof Colour)
@@ -119,7 +121,7 @@ public class Visitor extends ArcBaseVisitor<Object>
             specialVarSuppliers.put("board",      () -> board);
             specialVarSuppliers.put("source",     () -> input);
 
-            immutableVars.addAll(Arrays.asList("topology", "source", "board"));
+            immutableVars.addAll(Arrays.asList("topology", "pattern", "source", "board"));
         }
         catch (NoSuchMethodException e)
         {

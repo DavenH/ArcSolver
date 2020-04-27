@@ -2,47 +2,55 @@ package gen.grid;
 
 import gen.primitives.Colour;
 import gen.primitives.Pos;
-import gen.priors.abstraction.AttrNames;
-import gen.priors.abstraction.Attribute;
-import gen.priors.abstraction.Symmetry;
+import gen.priors.abstraction.*;
 import gen.priors.adt.Array;
 import gen.priors.spatial.Compass;
 
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
-public interface Grid<T>
+public abstract class Grid<T>
 {
-    // for conciseness
-    default int w() { return getWidth(); }
-    default int h() { return getHeight(); }
+    protected T[][] grid;
+    protected int width, height;
+    protected Grid board;
+    protected Pos pos;
+    protected Array<Grid> children = new Array<>();
+    protected Colour brush;
 
-    int getWidth();
-    int getHeight();
-    default int getDim(int index) { return index == 0 ? getWidth() : getHeight(); }
-    Pos getPos();
-    default Pos getTopRight() { return getPos().plus(getWidth(), getHeight()); }
-    void setPos(Pos pos);
+    // for conciseness using dsl
+    public int w() { return getWidth(); }
+    public int h() { return getHeight(); }
 
-    default void setPos(int x, int y)  { setPos(new Pos(x, y)); }
-    default void set(Pos pos, T value) { set(pos.x, pos.y, value); }
+    public int getWidth()        { return width; }
+    public int getHeight()       { return height; }
+    public Colour getBrush()     { return brush; }
+    public Pos getPos()          { return pos; }
+    public int getDim(int index) { return index == 0 ? getWidth() : getHeight(); }
+    public Pos getTopRight()     { return getPos().plus(getWidth(), getHeight()); }
 
-    Grid<T> cloneInstance(int h, int w);
+    public void addChild(Grid child) { this.children.add(child); }
+    public void setPos(Pos pos)  { this.pos = pos; }
+    public void setPos(int x, int y)  { setPos(new Pos(x, y)); }
+    public void set(Pos pos, T value) { set(pos.x, pos.y, value); }
 
-    void set(int x, int y, T value);
-    void set(T value);
-    void paint(int x, int y);
+    public abstract Grid<T> cloneInstance(int w, int h);
+    public abstract void set(int x, int y, T value);
+    public abstract void set(T value);
+    public abstract void paint(int x, int y);
 
-    default int rightmostIndex() { return getWidth() - 1; }
-    default int topmostIndex() { return getHeight() - 1; }
+    public int rightmostIndex() { return getWidth() - 1; }
+    public int topmostIndex() { return getHeight() - 1; }
 
-    default T get(Pos p) { return get(p.x, p.y); }
-    T get(int x, int y);
+    public abstract T get(int x, int y);
+    public T get(Pos p) { return get(p.x, p.y); }
 
-    Grid getBoard();
+    public Grid getBoard() { return board; }
+    public abstract void resize(int w, int h);
 
-    default int countPositive()
+    public int countPositive()
     {
         int count = 0;
         for(int j = 0; j < getHeight(); ++j)
@@ -52,16 +60,33 @@ public interface Grid<T>
         return count;
     }
 
-    boolean isEmpty(int x, int y);
+    public abstract boolean isEmpty(int x, int y);
 
-    default boolean isEmpty(Pos xy)             { return isEmpty(xy.x, xy.y); }
-    default boolean isNotEmpty(Pos p)           { return inBounds(p) && ! isEmpty(p); }
-    default boolean isNotEmpty(int x, int y)    { return inBounds(x, y) && ! isEmpty(x, y); }
-    default boolean inBounds(Pos xy)            { return inBounds(xy.x, xy.y); }
+    public boolean isEmpty(Pos xy)             { return isEmpty(xy.x, xy.y); }
+    public boolean isNotEmpty(Pos p)           { return inBounds(p) && ! isEmpty(p); }
+    public boolean isNotEmpty(int x, int y)    { return inBounds(x, y) && ! isEmpty(x, y); }
+    public boolean inBounds(Pos xy)            { return inBounds(xy.x, xy.y); }
 
-    Map<AttrNames, Attribute> getAttributes();
+    public Array<Grid> getChildren() { return children; }
 
-    default Set<Symmetry> getSymmetries()
+    public Map<AttrNames, Attribute> getAttributes()
+    {
+        Map<AttrNames, Attribute> attributes = new HashMap<>();
+
+        Set<Symmetry> symmetries = getSymmetries();
+        attributes.put(AttrNames.SymmetrySet, new ValueCategoricalAttr<>(symmetries));
+        attributes.put(AttrNames.ShapeHash, new ShapeHashAttr(this));
+        attributes.put(AttrNames.X, new ValueCategoricalAttr<>(pos.x));
+        attributes.put(AttrNames.Y, new ValueCategoricalAttr<>(pos.y));
+        attributes.put(AttrNames.W, new ValueCategoricalAttr<>(width));
+        attributes.put(AttrNames.H, new ValueCategoricalAttr<>(height));
+        attributes.put(AttrNames.Colour, new ValueCategoricalAttr<>(getBrush()));
+        attributes.put(AttrNames.Centre, new ValueCategoricalAttr<>(getPos()));
+
+        return attributes;
+    }
+
+    public Set<Symmetry> getSymmetries()
     {
         Set<Symmetry> syms = new HashSet<>();
 
@@ -86,7 +111,7 @@ public interface Grid<T>
         return syms;
     }
 
-    default Grid<T> reflect(Symmetry sym)
+    public Grid<T> reflect(Symmetry sym)
     {
         Grid<T> m = (sym.isDiagonal()) ?
                     cloneInstance(getHeight(), getWidth()) :
@@ -96,24 +121,26 @@ public interface Grid<T>
         int h = getHeight();
         Array<Pos> arr = Pos.permute(w, h);
 
+        // surely this can be sped up with System.arrayCopy in certain cases.
         for(Pos p : arr)
         {
             switch (sym)
             {
-                case Vert:      m.set(p,             get(p.fromTop(h)));
-                case Horz:      m.set(p,             get(p.fromRight(w)));
-                case Diag:      m.set(p.transpose(), get(p));
-                case NegDiag:   m.set(p.transpose(), get(p.fromTopRight(w, h)));
+                case Vert:      m.set(p,             get(p.fromTop(h)));        break;
+                case Horz:      m.set(p,             get(p.fromRight(w)));      break;
+                case Diag:      m.set(p.transpose(), get(p));                   break;
+                case NegDiag:   m.set(p.transpose(), get(p.fromTopRight(w, h)));break;
             }
         }
 
         return m;
     }
 
-    default Grid<T> rotate(int quartersCW)
+    public Grid<T> rotate(int quartersCW)
     {
         if(quartersCW == 0)
             return this;
+
         quartersCW = quartersCW % 4;
         Grid<T> m = (quartersCW == 2) ?
                     cloneInstance(getWidth(), getHeight()) :
@@ -131,12 +158,12 @@ public interface Grid<T>
         }
         else
         {
-            if(quartersCW == 1)
+            if(quartersCW == 3)
             {
                 for(Pos p : arr)
                     m.set(p.transpose(), get(p.fromTop(h)));
             }
-            else if(quartersCW == 3)
+            else if(quartersCW == 1)
             {
                 for(Pos p : arr)
                     m.set(p.transpose(), get(p.fromRight(w)));
@@ -146,17 +173,17 @@ public interface Grid<T>
         return m;
     }
 
-    default boolean inBounds(int x, int y)
+    public boolean inBounds(int x, int y)
     {
         return x >= 0 && x < getWidth() && y >= 0 && y < getHeight();
     }
 
-    default Mask sides()
+    public Mask sides()
     {
         return horzSides().or(vertSides());
     }
 
-    default Mask horzSides()
+    public Mask horzSides()
     {
         Mask m = new Mask(getBoard(), getWidth(), getHeight(), getPos(), false);
 
@@ -169,7 +196,7 @@ public interface Grid<T>
         return m;
     }
 
-    default Mask vertSides()
+    public Mask vertSides()
     {
         Mask m = new Mask(getBoard(), getWidth(), getHeight(), getPos(), false);
 
@@ -182,7 +209,7 @@ public interface Grid<T>
         return m;
     }
 
-    default Mask above()
+    public Mask above()
     {
         int[] numEmptyCellsFromTop = new int[getWidth()];
         int topMaskIdx = getHeight() - 1;
@@ -216,7 +243,7 @@ public interface Grid<T>
         return mask;
     }
 
-    default Mask below()
+    public Mask below()
     {
         int[] numEmptyCellsFromBottom = new int[getWidth()];
         int botMaskIdx = 0;
@@ -249,7 +276,7 @@ public interface Grid<T>
         return mask;
     }
 
-    default Mask leftOf()
+    public Mask leftOf()
     {
         int[] numEmptyCellsFromLeft = new int[getHeight()];
         int maxVoidWidth = 0;
@@ -280,7 +307,7 @@ public interface Grid<T>
         return mask;
     }
 
-    default Mask rightOf()
+    public Mask rightOf()
     {
         int[] numEmptyCellsFromRight = new int[getHeight()];
         int maxVoidWidth = 0;
@@ -311,7 +338,7 @@ public interface Grid<T>
         return output;
     }
 
-    default Mask around()
+    public Mask around()
     {
         Mask mask = new Mask(getBoard(),
                              getWidth() + 2,
@@ -340,7 +367,7 @@ public interface Grid<T>
         return mask;
     }
 
-    default void getCellsFromEdge(Compass compass)
+    public void getCellsFromEdge(Compass compass)
     {
         // for each unit along the edge of the board that is in the compass direction provided
 
@@ -349,7 +376,7 @@ public interface Grid<T>
         //
     }
 
-    default Mask getExtent(Compass direction)
+    public Mask getExtent(Compass direction)
     {
         switch (direction)
         {
@@ -362,7 +389,7 @@ public interface Grid<T>
         throw new RuntimeException("Direction " + direction + " not a viable extent.");
     }
 
-    default Mask top()
+    public Mask top()
     {
         int[] numEmptyCellsFromTop = new int[getWidth()];
         int maxVoidHeight = 0;
@@ -389,7 +416,7 @@ public interface Grid<T>
         return mask;
     }
 
-    default Mask bottom()
+    public Mask bottom()
     {
         int[] numEmptyCellsFromBottom = new int[getWidth()];
         int maxVoidHeight = 0;
@@ -416,7 +443,7 @@ public interface Grid<T>
         return mask;
     }
 
-    default Mask left()
+    public Mask left()
     {
         int[] numEmptyCellsFromLeft = new int[getHeight()];
         int maxVoidWidth = 0;
@@ -443,7 +470,7 @@ public interface Grid<T>
         return mask;
     }
 
-    default Mask right()
+    public Mask right()
     {
         int[] numEmptyCellsFromRight = new int[getHeight()];
         int rightMaskIdx = rightmostIndex();
@@ -473,31 +500,34 @@ public interface Grid<T>
         return mask;
     }
 
-    default Mask perimeter()
+    public Mask perimeter()
     {
         return top().or(left()).or(bottom()).or(right());
     }
 
 
-    default Mask betweenHorz(Grid other)
+    public Mask betweenHorz(Grid other)
     {
         if(other.centre().x < centre().x)
         {
             Mask leftOf1 = leftOf();
             Mask rightOf1 = other.rightOf();
-
-            return leftOf1.and(rightOf1).trim();
+            Mask between = leftOf1.and(rightOf1);
+            between.trim();
+            return between;
         }
         else
         {
             Mask leftOf1 = other.leftOf();
             Mask rightOf1 = rightOf();
 
-            return leftOf1.and(rightOf1).trim();
+            Mask between = leftOf1.and(rightOf1);
+            between.trim();
+            return between;
         }
     }
 
-    default Mask betweenVert(Grid other)
+    public Mask betweenVert(Grid other)
     {
         if(other.centre().y < centre().y)
         {
@@ -515,7 +545,7 @@ public interface Grid<T>
         }
     }
 
-    default Mask corners()
+    public Mask corners()
     {
         Mask m = new Mask(getBoard(), getWidth(), getHeight(), getPos(), false);
 
@@ -527,17 +557,33 @@ public interface Grid<T>
         return m;
     }
 
-    default Mask between(Grid g)
+    public Mask between(Grid g)
     {
         return betweenHorz(g).or(betweenVert(g));
     }
 
-    default Pos centre()
+    public Pos centre()
     {
         return getPos().plus(getWidth() / 2, getHeight() / 2);
     }
 
-    default boolean contains(Pos pos)
+
+    public boolean boundsContain(Grid grid)
+    {
+        Pos bl = getPos();
+        Pos tr = getTopRight();
+        Pos gridBl = grid.getPos();
+        Pos gridTr = grid.getTopRight();
+
+        if(bl.x > gridBl.x || bl.y > gridBl.y ||
+           tr.x < gridTr.x || tr.y < gridTr.y)
+            return false;
+
+        return true;
+    }
+
+
+    public boolean contains(Pos pos)
     {
         Pos moved = pos.minus(getPos());
 
@@ -551,9 +597,8 @@ public interface Grid<T>
         return false;
     }
 
-    Colour getBrush();
 
-    default boolean equals(Grid grid)
+    public boolean equals(Grid grid)
     {
         if(getWidth() != grid.getWidth() || getHeight() != grid.getHeight())
             return false;
@@ -568,74 +613,89 @@ public interface Grid<T>
         return true;
     }
 
-    default int hash()
+    public int hash()
     {
         int hash = 109238457;
         for(int i = 0; i < getWidth(); ++i)
             for(int j = 0; j < getHeight(); ++j)
                 hash *= get(i, j).hashCode() *
-                        ((i + 1) * -432147) + (j + 1) * 7751013;
+                        ((i + 1) * -432141) + (j + 1) * 7751013;
 
         return hash;
     }
 
-    // public Between between(Area other) { return new Between(this, other); }
-    // attempting to generalize... sigh. If positive cells were represented as [x,y] coords all could be rotated, processed, unrotated
-    /*
-    public int[] getNumEmptyCellsByLine(Grid subjGrid, boolean isVertical, boolean isOrigin)
+    public Grid<T> scaled(int multiple)
     {
-        int dimension   = isVertical ? 0 : 1;
-        int perpDim     = 1 - dimension;
-        int length      = subjGrid.getDim(perpDim);
-        int perpLength  = subjGrid.getDim(dimension);
+        if(multiple == 1)
+            return this;
 
-        int[] numEmptyCellsFromGridEdge = new int[length];
-        int endToNotExceed = isOrigin ? perpLength - 1 : 0;
 
-        // if our direction is from the origin inward, we count up, if not, count down from the edge
-        int polarity = isOrigin ? 1 : -1;
-        int maxEmptyCells = 0;
+        int w = multiple * getWidth();
+        int h = multiple * getHeight();
+        Grid<T> scaledClone = cloneInstance(w, h);
+        scaledClone.setPos(getPos());
 
-        for(int j = 0; j < length; ++j)
+        for(int i = 0; i < w; ++i)
         {
-            int count = isOrigin ? 0 : endToNotExceed;
-            while(subjGrid.isEmpty(isVertical ? count : j, isVertical ? j : count) && polarity * count < polarity * endToNotExceed)
-                count += polarity;
-
-            numEmptyCellsFromGridEdge[j] = count;
-            maxEmptyCells = Math.max(numEmptyCellsFromGridEdge[j], maxEmptyCells);
-        }
-
-        int cellsTowardEdgeOfSubject = isOrigin ?
-                                       getPos().get(dimension) :
-                                       getBoard().getDim(dimension) - getTopRight().get(dimension);
-
-        int sizeOfMask = cellsTowardEdgeOfSubject + maxEmptyCells;
-        int one = perpLength - maxEmptyCells;
-        int bot = isVertical ? subject.getPosition().y : one;
-        int left = isOrigin ? 0 : isVertical ? one : subject.getPosition().x;
-
-        // origin
-        Pos leftOfPos = new Pos(0, subject.getPosition().y);    // vert
-        Pos belowPos = new Pos(subject.getPosition().x, 0);     // ! vert
-
-        // ! origin
-        Pos rightOfPos = subject.getPosition().plus(one, 0); // vert
-        Pos abovePos = subject.getPosition().plus(0, one); // ! vert
-
-        MaskGrid output = new MaskGrid(sizeOfMask, subjGrid.getHeight());
-        output.setPos(new Pos(bot, left));
-
-        for(int j = 0; j < length; ++j)
-        {
-            // if it's equal, then the whole column is empty -- nothing to be 'above'
-            if(numEmptyCellsFromGridEdge[j] != length)
+            for(int j = 0; j < h; ++j)
             {
-                // each column is
-                for(int x = 0; x < numEmptyCellsFromGridEdge[j] + cellsTowardEdgeOfSubject; ++x)
-                    output.paint(x, j);
+                scaledClone.set(i, j, get(i / multiple, j / multiple));
             }
         }
+
+        return scaledClone;
     }
-*/
+
+    public void trim()
+    {
+        int x = 0, y = 0;
+        int width = getWidth();
+        int height = getHeight();
+
+        f1:
+        for(x = 0; x < width; ++x)
+            for(y = 0; y < height; ++y)
+                if(isNotEmpty(x, y))
+                    break f1;
+
+        int fromLeftX = x;
+
+        f2:
+        for(x = width - 1; x >= 0; --x)
+            for(y = 0; y < height; ++y)
+                if(isNotEmpty(x, y))
+                    break f2;
+
+        int fromRightX = x;
+
+        f3:
+        for(y = 0; y < height; ++y)
+            for(x = 0; x < width; ++x)
+                if(isNotEmpty(x, y))
+                    break f3;
+
+        int fromBotY = y;
+
+        f4:
+        for(y = height - 1; y >= 0; --y)
+            for(x = 0; x < width; ++x)
+                if(isNotEmpty(x, y))
+                    break f4;
+
+        int fromTopY = y;
+
+        int newWidth = fromRightX - fromLeftX + 1;
+        int newHeight = fromTopY - fromBotY + 1;
+
+        T[][] oldGrid = grid;
+        resize(newWidth, newHeight);
+
+        for(x = 0; x < newWidth; ++x)
+            for(y = 0; y < newHeight; ++y)
+                grid[y][x] = oldGrid[y + fromBotY][x + fromLeftX];
+
+        setPos(getPos().plus(fromLeftX, fromBotY));
+    }
+
+    public abstract float[][] toFloat();
 }

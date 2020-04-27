@@ -1,29 +1,15 @@
 package sci;
 
-import gen.grid.ColorGrid;
-
-import java.util.Set;
+import problem.Task;
 
 public class Model
 {
-    public Set<Entity> findEntities(ColorGrid grid,
-                                    Set<Entity> entitiesAlreadyFound,
-                                    int boredom)
+    public Model()
     {
-        return null;
     }
 
-    public Set<Entity> findEntities(ColorGrid grid,
-                                    Set<Entity> seedEntities,
-                                    Set<Entity> entitiesAlreadyFound,
-                                    int boredom)
+    public void setTask(Task task)
     {
-        return null;
-    }
 
-    public Set<Transformation> findMappings(Set<Entity> commonInputEntities,
-                                            Set<Entity> commonOutputEntities)
-    {
-        return null;
     }
 }

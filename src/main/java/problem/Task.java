@@ -198,9 +198,8 @@ public class Task
             JsonArray row = elem.getAsJsonArray();
             List<Integer> ints = new ArrayList<>();
             for(JsonElement value : row)
-            {
                 ints.add(value.getAsInt());
-            }
+
             values.add(ints);
         }
 

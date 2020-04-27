@@ -34,7 +34,8 @@ public class Topology
             {
                 Mask shape = new Mask(m);
                 addFloodToMask(visited, shape, p);
-                arr.add(shape.trim());
+                shape.trim();
+                arr.add(shape);
             }
         }
 

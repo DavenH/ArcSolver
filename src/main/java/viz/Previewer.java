@@ -382,7 +382,7 @@ public class Previewer extends Application implements ANTLRErrorListener
     private static final String[] DRAW   = new String[] { "draw", "dims", "fill" };
 
     private static final String[] PREP   = new String[] { "left", "right", "top", "bottom", "leftOf", "rightOf", "below", "above", "between", "around", "corners", "ends" };
-    private static final String[] FUNC   = new String[] { "layout", "solve", "find", "groupBy", "infill", "shapes" };
+    private static final String[] FUNC   = new String[] { "layout", "solve", "find", "groupBy", "reduceFourierNoise", "shapes" };
     private static final String[] OBJ    = new String[] { "pos", "mask", "dot", "square", "rect", "line", "grid" };
     private static final String[] BOOL   = new String[] { "nand", "xor", "or", "and" };
     private static final String[] ADT    = new String[] { "list", "orderBy", "first", "last", "foreach" };

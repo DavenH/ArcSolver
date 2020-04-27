@@ -3,6 +3,9 @@ package gen.grid;
 import gen.primitives.Colour;
 import gen.primitives.Pos;
 import gen.priors.abstraction.ShapeHashAttr;
+import gen.priors.abstraction.Symmetry;
+
+import java.util.Set;
 
 public class TestMask extends GridTest
 {
@@ -137,42 +140,104 @@ public class TestMask extends GridTest
         log("\nbetween\n" + between.toString());
     }
 
-    private void testHashing()
+    private void testRotations()
+    {
+        ColorGrid board = new ColorGrid(null, 10, 10);
+        Mask a = new Mask(board, "0101111010100001", 4);   // original
+//        Mask a = new Mask(board, "010111101", 3);
+
+        log("Original hash: " + a.hash());
+        log("Original mask:\n" + a.toString());
+
+        for(int i = 0; i < 4; ++i)
+        {
+            Grid rotated = a.rotate(i);
+            int hash = rotated.hash();
+
+            log("Hash at " + i + " 90 deg rotations: " + hash);
+            log("Rotated Mask:\n" + rotated.toString());
+        }
+    }
+
+    private void reportSymmetries(Grid m, String expected)
+    {
+        line();
+        log("Original hash: " + m.hash());
+        Set<Symmetry> syms = m.getSymmetries();
+
+        log("Expecting " + expected + " symmetries:");
+        log(syms.toString());
+
+        log(m.toString());
+
+        log("Hashes of different symmetries: ");
+        for(Symmetry sym : Symmetry.values())
+        {
+            log(sym.toString());
+
+            Grid symMask = m.reflect(sym);
+            log(symMask.hash());
+        }
+        line();
+    }
+
+    private void testSymmetries()
+    {
+        ColorGrid board = new ColorGrid(null, 10, 10);
+        Mask fourSym = new Mask(board, "1001000000001001", 4);   // original
+        Mask vertSym = new Mask(board, "1001100010001001", 4);   // original
+        reportSymmetries(fourSym, "horz/vert/diag/negdiag");
+        reportSymmetries(vertSym, "vert");
+
+        ColorGrid fourSym2 = new ColorGrid(board, "1551566556651551", 4);   // original
+        ColorGrid negdiag = new ColorGrid(board, "0002002002002000", 4);   // original
+        reportSymmetries(fourSym2, "horz/vert/diag/negdiag");
+        reportSymmetries(negdiag, "negdiag");
+    }
+
+    private void testTopologicalHashing()
     {
         ColorGrid board = new ColorGrid(null, 10, 10);
 
-        Mask a = new Mask(board, "010111101", 3);
-        Mask b = new Mask(board, "010111101", 3);
-        Mask c = new Mask(board, "000111101", 3);
-        Mask d = new Mask(board, "110011110", 3);
-        Mask e = new Mask(board, "101111010", 3);
-        Mask f = new Mask(board, "1", 1);
+        long timeMillis = System.currentTimeMillis();
+
+        Mask a = new Mask(board, "010111101", 3);   // original
+//        Mask b = new Mask(board, "010111101", 3);   // equal
+//        Mask c = new Mask(board, "000111101", 3);   // different
+        Mask d = new Mask(board, "110011110", 3);   // rotated by 90
+//        Mask e = new Mask(board, "101111010", 3);   // rotated by 180
+//        Mask f = new Mask(board, "1", 1);
 
         log("Expecting a == b != d != e != c");
         log("Hash a = " + a.hash());
-        log("Hash b = " + b.hash());
-        log("Hash c = " + c.hash());
+//        log("Hash b = " + b.hash());
+//        log("Hash c = " + c.hash());
         log("Hash d = " + d.hash());
-        log("Hash e = " + e.hash());
-        log("Hash f = " + f.hash());
+//        log("Hash e = " + e.hash());
+//        log("Hash f = " + f.hash());
 
         log("\nExpecting a == b == d == e != c");
         log("Shape hash a = " + new ShapeHashAttr<>(a).getValue());
-        log("Shape hash b = " + new ShapeHashAttr<>(b).getValue());
-        log("Shape hash c = " + new ShapeHashAttr<>(c).getValue());
+//        log("Shape hash b = " + new ShapeHashAttr<>(b).getValue());
+//        log("Shape hash c = " + new ShapeHashAttr<>(c).getValue());
         log("Shape hash d = " + new ShapeHashAttr<>(d).getValue());
-        log("Shape hash e = " + new ShapeHashAttr<>(e).getValue());
+//        log("Shape hash e = " + new ShapeHashAttr<>(e).getValue());
+
+        long endMillis = System.currentTimeMillis();
+        log(endMillis - timeMillis + " millis");
     }
 
     public static void main(String[] args)
     {
         TestMask testMask = new TestMask();
 //        testMask.testOutsideCompass();
-//        testMask.testCompass();
+        testMask.testCompass();
 //        testMask.testOtherFocuses();
 //        testMask.testTrim();
 //        testMask.testBinaryOps();
 //        testMask.testBetween();
-        testMask.testHashing();
+//        testMask.testTopologicalHashing();
+//        testMask.testSymmetries();
+//        testMask.testRotations();
     }
 }

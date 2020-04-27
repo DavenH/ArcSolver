@@ -11,10 +11,27 @@ public enum AttrNames
     Centre,
 
     // countable
-    X, Y, W, H,
+    X, Y,
+    ArrayX, ArrayY,
+    W, H,
     NumChildren,
     NumPositive,
     NumNegative,
+}
 
-    // comparable
+enum RelativeAttrNames
+{
+    // relative
+    CompassDir,
+    RelativeAngle,
+    RelativeSymmetry,
+
+    // external to 1
+    LeftOf, RightOf, Above, Below, Outside, Around,
+
+    // relative to 2+
+    CentreOf, ContainedBy,
+
+    // relative to an Axis
+    Opposite, Parallel, OrthogonalTo
 }

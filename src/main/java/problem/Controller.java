@@ -62,6 +62,20 @@ public class Controller
         }
     }
 
+    public List<Task> getTasks(int[] indices, boolean training)
+    {
+        List<Task> trainTasks = getTasks(training);
+        List<Task> indexedTasks = new ArrayList<>();
+
+        for(int index : indices)
+        {
+            indexedTasks.add(trainTasks.get(index));
+        }
+
+        return indexedTasks;
+    }
+
+
     public void saveTasks(File directory)
     {
         File trainingDir = new File(directory.getAbsolutePath() + File.separatorChar + "training");

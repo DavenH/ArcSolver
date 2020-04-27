@@ -7,14 +7,11 @@ import gen.priors.adt.Array;
 
 import java.util.*;
 import java.util.function.BiFunction;
+import java.util.function.BinaryOperator;
 
-public class ColorGrid implements Grid<Colour>
+public class ColorGrid extends Grid<Colour>
 {
-    public Pos pos, arrayPos;
-    public int width, height;
-
-    Array<ColorGrid> colorChildren;
-    Array<Mask> monoChildren;
+    public Pos arrayPos;
 
     @Override
     public ColorGrid cloneInstance(int w, int h)
@@ -22,17 +19,11 @@ public class ColorGrid implements Grid<Colour>
         return new ColorGrid(board, w, h, pos, arrayPos, brush, background);
     }
 
-    Grid board;
-    Colour brush, background;
-    Colour[][] grid;
+    Colour background;
 
     @Override public int getWidth()        { return width; }
     @Override public int getHeight()       { return height; }
-    @Override public int getDim(int index) { return index == 0 ? width : height; }
     @Override public Pos getPos()          { return pos; }
-    @Override public void setPos(Pos pos)  { this.pos = pos; }
-    @Override public Grid getBoard()       { return board; }
-    @Override public Colour getBrush()     { return brush; }
     public Colour getBackground()          { return background; }
 
     public void setBackground(Colour bg)
@@ -173,22 +164,12 @@ public class ColorGrid implements Grid<Colour>
     @Override
     public Map<AttrNames, Attribute> getAttributes()
     {
-        Map<AttrNames, Attribute> attributes = new HashMap<>();
+        Map<AttrNames, Attribute> attributes = super.getAttributes();
 
-        Set<Symmetry> symmetries = getSymmetries();
-        attributes.put(AttrNames.SymmetrySet, new ValueCategoricalAttr<>(symmetries));
-        attributes.put(AttrNames.ShapeHash, new ShapeHashAttr(this));
-        attributes.put(AttrNames.X, new ValueCategoricalAttr<>(pos.x));
-        attributes.put(AttrNames.Y, new ValueCategoricalAttr<>(pos.y));
-        attributes.put(AttrNames.W, new ValueCategoricalAttr<>(width));
-        attributes.put(AttrNames.H, new ValueCategoricalAttr<>(height));
-        attributes.put(AttrNames.Colour, new ValueCategoricalAttr<>(getBrush()));
         attributes.put(AttrNames.Background, new ValueCategoricalAttr<>(getBackground()));
         attributes.put(AttrNames.Centre, new ValueCategoricalAttr<>(getPos()));
-
-        int positive = countPositive();
-        attributes.put(AttrNames.NumNegative, new ValueCategoricalAttr<>(width * height - positive));
-        attributes.put(AttrNames.NumPositive, new ValueCategoricalAttr<>(positive));
+        attributes.put(AttrNames.ArrayX, new ValueCategoricalAttr<>(arrayPos.x));
+        attributes.put(AttrNames.ArrayY, new ValueCategoricalAttr<>(arrayPos.y));
 
         return attributes;
     }
@@ -245,7 +226,7 @@ public class ColorGrid implements Grid<Colour>
             }
         }
 
-        colourToMask.forEach((c, m) -> array.add(m.trim()));
+        colourToMask.forEach((c, m) -> {m.trim(); array.add(m);});
         return array;
     }
 
@@ -349,9 +330,12 @@ public class ColorGrid implements Grid<Colour>
 
     public <R> R compare(ColorGrid other,
                          BiFunction<Colour, Colour, R> op,
-                         BiFunction<R, R, R> foldFunction,
+                         BinaryOperator<R> foldFunction,
                          R startValue)
     {
+        if(other.getWidth() != width || other.getHeight() != height)
+            return startValue;
+
         R lastValue = startValue;
         for(int i = 0; i < grid.length; ++i)
         {
@@ -450,13 +434,13 @@ public class ColorGrid implements Grid<Colour>
 
     public static class EntropyData
     {
-        public double[] vert, horz;
-        public double metaVert, metaHorz;
+        public float[] vert, horz;
+        public float metaVert, metaHorz;
 
         EntropyData(int w, int h)
         {
-            vert = new double[h];
-            horz = new double[w];
+            vert = new float[h];
+            horz = new float[w];
         }
     }
 
@@ -501,9 +485,9 @@ public class ColorGrid implements Grid<Colour>
         return data;
     }
 
-    private double shannonEntropy(Iterable<Integer> list, int dataLength)
+    private float shannonEntropy(Iterable<Integer> list, int dataLength)
     {
-        double entropy = 0.0;
+        float entropy = 0.f;
         for(Integer count : list)
         {
             double p = 1.0 * count / dataLength;
@@ -530,7 +514,7 @@ public class ColorGrid implements Grid<Colour>
                     ++num;
                 last = curr;
             }
-            data.vert[j] = num / (double) width;
+            data.vert[j] = num / (float) width;
         }
 
         for(int i = 0; i < width; ++i)
@@ -546,7 +530,7 @@ public class ColorGrid implements Grid<Colour>
                 last = curr;
             }
 
-            data.horz[i] = num / (double) height;
+            data.horz[i] = num / (float) height;
         }
 
         double last = data.vert[0];
@@ -569,5 +553,21 @@ public class ColorGrid implements Grid<Colour>
         data.metaHorz /= (double) data.horz.length;
 
         return data;
+    }
+
+    public void dissolveCrosshatch(Colour crosshatch)
+    {
+
+    }
+
+    public float[][] toFloat()
+    {
+        float[][] array = new float[height][width];
+
+        for(int y = 0; y < height; ++y)
+            for(int x = 0; x < width; ++x)
+                array[y][x] = get(x, y).ordinal();
+
+        return array;
     }
 }

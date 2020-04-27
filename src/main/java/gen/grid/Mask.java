@@ -2,35 +2,20 @@ package gen.grid;
 
 import gen.primitives.Colour;
 import gen.primitives.Pos;
-import gen.priors.abstraction.*;
+import gen.priors.abstraction.AttrNames;
+import gen.priors.abstraction.Attribute;
+import gen.priors.abstraction.ShapeAttr;
+import gen.priors.abstraction.ValueCategoricalAttr;
 import gen.priors.adt.Array;
 import gen.priors.spatial.Compass;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.function.BinaryOperator;
 
-public class Mask implements Grid<Boolean>
+public class Mask extends Grid<Boolean>
 {
-    boolean grid[][];
-
-    protected Pos pos;
-    protected int width, height;
-    protected Colour brush;
-    Grid board;
-
     protected ShapeAttr.Shape mostSpecifiedShape = ShapeAttr.Shape.Other;
-
-    @Override public int getWidth()        { return width; }
-    @Override public int getHeight()       { return height; }
-    @Override public Grid getBoard()       { return board; }
-    @Override public Colour getBrush()     { return brush; }
-
-    @Override public int getDim(int index) { return index == 0 ? width : height; }
-    @Override public Pos getPos()          { return pos; }
-    @Override public void setPos(Pos pos)  { this.pos = pos; }
 
     @Override
     public Mask cloneInstance(int w, int h)
@@ -141,22 +126,12 @@ public class Mask implements Grid<Boolean>
         return m;
     }
 
+    @Override
     public Map<AttrNames, Attribute> getAttributes()
     {
-        Map<AttrNames, Attribute> attributes = new HashMap<>();
-
-        Set<Symmetry> symmetries = getSymmetries();
-        attributes.put(AttrNames.SymmetrySet, new ValueCategoricalAttr<>(symmetries));
+        Map<AttrNames, Attribute> attributes = super.getAttributes();
         specifyShape();
-
         attributes.put(AttrNames.Shape, new ShapeAttr(mostSpecifiedShape));
-        attributes.put(AttrNames.ShapeHash, new ShapeHashAttr(this));
-        attributes.put(AttrNames.X, new ValueCategoricalAttr<>(pos.x));
-        attributes.put(AttrNames.Y, new ValueCategoricalAttr<>(pos.y));
-        attributes.put(AttrNames.W, new ValueCategoricalAttr<>(width));
-        attributes.put(AttrNames.H, new ValueCategoricalAttr<>(height));
-        attributes.put(AttrNames.Colour, new ValueCategoricalAttr<>(getBrush()));
-        attributes.put(AttrNames.Centre, new ValueCategoricalAttr<>(getPos()));
 
         int positive = countPositive();
         attributes.put(AttrNames.NumNegative, new ValueCategoricalAttr<>(width * height - positive));
@@ -203,17 +178,20 @@ public class Mask implements Grid<Boolean>
         return true;
     }
 
-    public void resize(int width, int height)
+    @Override public void resize(int width, int height)
     {
         this.width = width;
         this.height = height;
 
-        grid = (width <= 0 || height <= 0) ? new boolean[1][1] : new boolean[height][width];
+        grid = (width <= 0 || height <= 0) ? new Boolean[1][1] : new Boolean[height][width];
+        set(false);
     }
 
     public Mask within()
     {
-        return neg(perimeter()).trim();
+        Mask m = neg(perimeter());
+        m.trim();
+        return m;
     }
 
     public Mask doOp(Mask mask, BinaryOperator<Boolean> op)
@@ -245,7 +223,8 @@ public class Mask implements Grid<Boolean>
 //                product.set(i, j, op.apply(get(i + thisDeltaX, j + thisDeltaY),
 //                                           mask.get(i + thatDeltaX, j + thatDeltaY)));
 
-        return product.trim();
+        product.trim();
+        return product;
     }
 
     public Mask or  (Mask grid) { return doOp(grid, (a, b) -> a || b);   }
@@ -263,56 +242,6 @@ public class Mask implements Grid<Boolean>
             for(int j = 0; j < height; ++j)
                 mask.set(i, j, ! get(i, j));
         return mask;
-    }
-
-    public Mask trim()
-    {
-        int x = 0, y = 0;
-
-        f1:
-        for(x = 0; x < width; ++x)
-            for(y = 0; y < height; ++y)
-                if(isNotEmpty(x, y))
-                    break f1;
-
-        int fromLeftX = x;
-
-        f2:
-        for(x = width - 1; x >= 0; --x)
-            for(y = 0; y < height; ++y)
-                if(isNotEmpty(x, y))
-                    break f2;
-
-        int fromRightX = x;
-
-        f3:
-        for(y = 0; y < height; ++y)
-            for(x = 0; x < width; ++x)
-                if(isNotEmpty(x, y))
-                    break f3;
-
-        int fromBotY = y;
-
-        f4:
-        for(y = height - 1; y >= 0; --y)
-            for(x = 0; x < width; ++x)
-                if(isNotEmpty(x, y))
-                    break f4;
-
-        int fromTopY = y;
-
-        int newWidth = fromRightX - fromLeftX + 1;
-        int newHeight = fromTopY - fromBotY + 1;
-
-        boolean[][] oldGrid = grid;
-        resize(newWidth, newHeight);
-
-        for(x = 0; x < newWidth; ++x)
-            for(y = 0; y < newHeight; ++y)
-                grid[y][x] = oldGrid[y + fromBotY][x + fromLeftX];
-
-        pos = pos.plus(fromLeftX, fromBotY);
-        return this;
     }
 
     public Array<Pos> positiveToArray()
@@ -373,17 +302,13 @@ public class Mask implements Grid<Boolean>
         }
     }
 
+    @Override
     public Boolean get(int x, int y)
     {
         if(! inBounds(x, y))
             return false;
 
         return grid[y][x];
-    }
-
-    public Boolean get(Pos pos)
-    {
-        return get(pos.x, pos.y);
     }
 
     public Mask copy()
@@ -402,7 +327,7 @@ public class Mask implements Grid<Boolean>
     @Override
     public boolean isEmpty(int x, int y)
     {
-        return ! grid[y][x];
+        return grid[y][x] == null || grid[y][x] == false;
     }
 
     @Override
@@ -429,5 +354,17 @@ public class Mask implements Grid<Boolean>
     public void setBrush(Colour brush)
     {
         this.brush = brush;
+    }
+
+
+    public float[][] toFloat()
+    {
+        float[][] array = new float[height][width];
+
+        for(int y = 0; y < height; ++y)
+            for(int x = 0; x < width; ++x)
+                array[y][x] = get(x, y) ? 1 : 0;
+
+        return array;
     }
 }

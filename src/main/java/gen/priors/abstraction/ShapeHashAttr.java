@@ -8,16 +8,26 @@ public class ShapeHashAttr<T> extends ValueCategoricalAttr<Integer>
     {
         int minHash = Integer.MAX_VALUE;
 
-        for(int i = 0; i < 4; ++i)
-        {
-            int hash = mask.rotate(i).hash();
-            minHash = Math.min(hash, minHash);
-        }
+        // obviously if the scaling extends outside of the board it's not gonna match
+        int maxScale = Math.min(5, Math.max(mask.getBoard().getWidth(),
+                                            mask.getBoard().getHeight()) /
+                                   Math.max(mask.getWidth(), mask.getHeight()));
 
-        for(Symmetry sym : Symmetry.values())
+        for(int scale = 1; scale <= maxScale; ++scale)
         {
-            int hash = mask.reflect(sym).hash();
-            minHash = Math.min(hash, minHash);
+            Grid<T> scaled = mask.scaled(scale);
+
+            for(int i = 0; i < 4; ++i)
+            {
+                int hash = scaled.rotate(i).hash();
+                minHash = Math.min(hash, minHash);
+            }
+
+            for(Symmetry sym : Symmetry.values())
+            {
+                int hash = scaled.reflect(sym).hash();
+                minHash = Math.min(hash, minHash);
+            }
         }
 
         this.value = minHash;
