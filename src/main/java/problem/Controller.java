@@ -9,10 +9,7 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.PrintWriter;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class Controller
 {
@@ -69,6 +66,21 @@ public class Controller
 
         for(int index : indices)
         {
+            indexedTasks.add(trainTasks.get(index));
+        }
+
+        return indexedTasks;
+    }
+
+    public List<Task> getRandomTasks(int number, boolean training)
+    {
+        List<Task> trainTasks = getTasks(training);
+        List<Task> indexedTasks = new ArrayList<>();
+
+        Random random = new Random();
+        for(int i = 0; i < number; ++i)
+        {
+            int index = random.nextInt(trainTasks.size());
             indexedTasks.add(trainTasks.get(index));
         }
 

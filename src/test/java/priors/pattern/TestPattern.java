@@ -4,6 +4,7 @@ import common.Test;
 import gen.grid.ColorGrid;
 import gen.primitives.Colour;
 import gen.primitives.Pos;
+import gen.priors.abstraction.Symmetry;
 import gen.priors.pattern.Pattern;
 import problem.Task;
 import util.ArrayUtil;
@@ -34,26 +35,26 @@ public class TestPattern extends Test
 
                 System.out.println(constructedOutput.toString());
 
-                Iterable<T2<Pos, Integer>> bases = pattern.getBasisVectors(constructedOutput, 2);
+                List<Symmetry> bases = pattern.getTransSymmetries(constructedOutput, 2);
                 constructedOutput.setBackground(Colour.Black);
 
-                for(T2<Pos, Integer> base : bases)
-                    System.out.println(base.getA() + ", " + base.getB());
+                for(Symmetry base : bases)
+                    System.out.println(base.pos + ", " + base.cellsObeying);
 
                 for(int y = 0; y < constructedOutput.getHeight(); ++y) {
                     for(int x = 0; x < constructedOutput.getWidth(); ++x) {
                         int[] counts = new int[Colour.values().length];
                         Pos xy = new Pos(x, y);
-                        for(T2<Pos, Integer> base : bases) {
+                        for(Symmetry base : bases) {
                             int iSpan = 3;
                             for(int i = -iSpan; i <= iSpan; ++i) {
-                                Pos scaled = base.getA().times(i);
+                                Pos scaled = base.pos.times(i);
                                 Pos p = xy.plus(scaled);
 
                                 if(constructedOutput.isNotEmpty(p)) {
                                     Colour c = constructedOutput.get(p);
                                     System.out.println(x + ", " + y + "; " + i + "; " + p.x + ", " + p.y + " -\t" + c);
-                                    counts[c.ordinal()] += base.getB();
+                                    counts[c.ordinal()] += base.cellsObeying;
                                 }
                             }
                         }
@@ -237,7 +238,6 @@ public class TestPattern extends Test
         for(int hIdx = 0; hIdx < copiesH; ++hIdx) {
             for(int wIdx = 0; wIdx < copiesW; ++wIdx) {
                 for(int rowIdx = 0; rowIdx < numRows; ++rowIdx) {
-
                     for(int colIdx = 0; colIdx < numCols; ++colIdx) {
                         array[hIdx * numRows + rowIdx][wIdx * numCols + colIdx] = subpattern[rowIdx][colIdx] - average;
                     }

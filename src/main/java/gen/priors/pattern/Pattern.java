@@ -311,22 +311,24 @@ public class Pattern
         return autodiff;
     }
 
-    public T2<float[][], List<Symmetry>> autosym(int[][] values)
+    public T2<float[][], List<Symmetry>> getFoldingSymmetries(int[][] values)
     {
         Pair<int[]> horzes  = getHorzSymmetry(values);  // odd, even
         Pair<int[]> verts   = getVertSymmetry(values);  // odd, even
 
-        int[] negdiag       = getNegDiagSymCollapsed(values);
-        int[] diag          = getDiagSymCollapsed(values);
+        int[] diag          = getNegDiagSymCollapsed(values);
+        int[] negdiag       = getDiagSymCollapsed(values);
 
         T2<Integer, Integer> hmax  = ArrayUtil.maxIndexAndValue(horzes.getA(), 0);
         T2<Integer, Integer> hemax = ArrayUtil.maxIndexAndValue(horzes.getB(), 0);
         T2<Integer, Integer> vmax  = ArrayUtil.maxIndexAndValue(verts.getA(), 0);
         T2<Integer, Integer> vemax = ArrayUtil.maxIndexAndValue(verts.getB(), 0);
-        T2<Integer, Integer> ndmax  = ArrayUtil.maxIndexAndValue(negdiag, 0);
         T2<Integer, Integer> dmax = ArrayUtil.maxIndexAndValue(diag, 0);
+        T2<Integer, Integer> ndmax  = ArrayUtil.maxIndexAndValue(negdiag, 0);
 
-        Integer max = Collections.max(Arrays.asList(hmax.getA(), hemax.getA(), vmax.getA(), vemax.getA(), dmax.getA(), ndmax.getA()));
+        Integer max = Collections.max(Arrays.asList(hmax.getB(), hemax.getB(),
+                                                    vmax.getB(), vemax.getB(),
+                                                    ndmax.getB(), dmax.getB()));
 
         int h = values.length;
         int w = values[0].length;
@@ -334,13 +336,11 @@ public class Pattern
         float imax = 1 / (float) max;
         float[][] autosym = new float[h][w];
 
-        for(int y = 0; y < h; ++y)
-        {
-            for (int x = 0; x < w; ++x)
-            {
+        for(int y = 0; y < h; ++y) {
+            for (int x = 0; x < w; ++x) {
                 autosym[y][x] += imax * (horzes.getA()[y] + verts.getA()[x]);
-                autosym[y][x] += imax * negdiag[h - 1 + x - y];
-                autosym[y][x] += imax * diag[y + x];
+                autosym[y][x] += imax * diag[h - 1 + x - y];
+                autosym[y][x] += imax * negdiag[y + x];
             }
 
             for (int x = 1; x < w; ++x)
@@ -351,18 +351,27 @@ public class Pattern
             for(int y = 1; y < h; ++y)
                 autosym[y][x] += imax * horzes.getB()[y - 1];
 
+        // this is rather complex due to the way the diag array is packed, it spans in a backwards L shape from (0, 0) to (w, 0) then to (w, h)
+        Pos diagPos = new Pos(dmax.getA() < h ? 0 : dmax.getA() - h,
+                               dmax.getA() < h ? h - 1 - dmax.getA() : 0);
+
+        // this is rather complex due to the way the negdiag array is packed, it spans in an L shape from (0, h) to (0, 0) then to (w, 0)
+        Pos ndiagPos = new Pos(Math.min(w - 1, ndmax.getA()), ndmax.getA() < w ? 0 : ndmax.getA() - w);
+
         T2<Pos, Float> maxPos = ArrayUtil.maxIndexAndValue(autosym, 0, 0);
-        Symmetry hSym  = new Symmetry(SymmetryType.Horz,    false,  maxPos.getA(), hmax.getB());
-        Symmetry heSym = new Symmetry(SymmetryType.Horz,    true,   maxPos.getA(), hemax.getB());
-        Symmetry vSym  = new Symmetry(SymmetryType.Vert,    false,  maxPos.getA(), vmax.getB());
-        Symmetry veSym = new Symmetry(SymmetryType.Vert,    true,   maxPos.getA(), vemax.getB());
-        Symmetry dSym  = new Symmetry(SymmetryType.Diag,    false,  maxPos.getA(), dmax.getB());
-        Symmetry ndSym = new Symmetry(SymmetryType.NegDiag, false,  maxPos.getA(), ndmax.getB());
+        int discount = Math.min(h, w) / 2;
+        Symmetry hSym  = new Symmetry(SymmetryType.Horz,    false,  new Pos(0, hmax.getA()), hmax.getB());
+        Symmetry heSym = new Symmetry(SymmetryType.Horz,    true,   new Pos(0, hemax.getA()), hemax.getB());
+        Symmetry vSym  = new Symmetry(SymmetryType.Vert,    false,  new Pos(vmax.getA(), 0), vmax.getB());
+        Symmetry veSym = new Symmetry(SymmetryType.Vert,    true,   new Pos(vemax.getA(), 0), vemax.getB());
+        Symmetry dSym  = new Symmetry(SymmetryType.NegDiag, false,  ndiagPos, ndmax.getB() - discount);
+        Symmetry ndSym = new Symmetry(SymmetryType.Diag,    false,  diagPos, dmax.getB() - discount);
 
         List<Symmetry> syms = Arrays.asList(hSym, heSym, vSym, veSym, dSym, ndSym);
 
         return new T2<>(autosym, syms);
     }
+
 
     public Pair<int[]> getHorzSymmetry(int[][] values)
     {
@@ -374,6 +383,8 @@ public class Pattern
 
         // horizontal symmetry
         for(int y = 0; y < h; ++y) {
+            hodd[y] = w;
+
             for(int yy = 1; yy + y < h && y - yy >= 0; ++yy)
                 for (int x = 0; x < w; ++x)
                     hodd[y] += values[y + yy][x] == values[y - yy][x] ? 1 : 0;
@@ -396,6 +407,7 @@ public class Pattern
 
         // vertical symmetry
         for(int x = 0; x < w; ++x) {
+            vodd[x] = h;
             for(int xx = 1; xx + x < w && x - xx >= 0; ++xx)
                 for (int y = 0; y < h; ++y)
                     vodd[x] += values[y][x + xx] == values[y][x - xx] ? 1 : 0;
@@ -440,14 +452,14 @@ public class Pattern
 
         for(int x = 0; x < w; ++x) {
             for (int y = 0; y < h; ++y) {
-                for(int k = 1; y - k >= 0 && x - k >= 0 && y + k < h && x + k < h; ++k)
+                for(int k = 0; y - k >= 0 && x - k >= 0 && y + k < h && x + k < w; ++k)
                     ndodd[y][x] += values[y + k][x - k] == values[y - k][x + k] ? 1 : 0;
             }
         }
 
         for(int x = 1; x < w; ++x) {
             for (int y = 0; y < h; ++y) {
-                for(int k = 0; y - k >= 0 && x - k  - 1 >= 0 && y + k + 1 < h && x + k < h; ++k)
+                for(int k = 0; y - k >= 0 && x - k  - 1 >= 0 && y + k + 1 < h && x + k < w; ++k)
                     ndeven[y][x - 1] += values[y + k + 1][x - k - 1] == values[y - k][x + k] ? 1 : 0;
             }
         }
@@ -465,14 +477,14 @@ public class Pattern
         // diagonal symmetry
         for(int x = 0; x < w; ++x) {
             for (int y = 0; y < h; ++y) {
-                for(int k = 1; y - k >= 0 && x - k >= 0 && y + k < h && x + k < h; ++k)
+                for(int k = 0; y - k >= 0 && x - k >= 0 && y + k < h && x + k < w; ++k)
                     dodd[y][x] += values[y - k][x - k] == values[y + k][x + k] ? 1 : 0;
             }
         }
 
         for(int x = 0; x < w - 1; ++x) {
             for (int y = 0; y < h; ++y) {
-                for(int k = 0; y - k >= 0 && x - k >= 0 && y + k + 1 < h && x + k + 1 < h; ++k)
+                for(int k = 0; y - k >= 0 && x - k >= 0 && y + k + 1 < h && x + k + 1 < w; ++k)
                     deven[y][x + 1] += values[y - k][x - k] == values[y + k + 1][x + k + 1] ? 1 : 0;
             }
         }
@@ -488,7 +500,6 @@ public class Pattern
         int[][] diagO = nd.getA();
         int[][] diagE = nd.getB();
 
-
         int[] diag = new int[w + h - 1];
         for (int y = 0; y < h; ++y)
             for(int k = 0; k <= y && k < w; ++k)
@@ -501,36 +512,13 @@ public class Pattern
         return diag;
     }
 
-    public T2<Pos, Float>[] getBasisVectors(ColorGrid grid)
-    {
-        int[][] auto = autoTransCorr(grid.toInt());
-        auto[0][0] = 0;
-        
-        float[] xvals = new float[auto[0].length];
-        float[] yvals = new float[auto.length];
-        float[] xyvals = new float[Math.min(xvals.length, yvals.length)];
-
-        for(int i = 0; i < xvals.length; ++i)   xvals[i] = auto[0][i];
-        for(int i = 0; i < yvals.length; ++i)   yvals[i] = auto[i][0];
-        for(int i = 0; i < xyvals.length; ++i)  xyvals[i] = auto[i][i];
-
-        T2<Integer, Float> minX = ArrayUtil.maxIndexAndValue(xvals, 1);
-        T2<Integer, Float> minY = ArrayUtil.maxIndexAndValue(yvals, 1);
-        T2<Pos, Integer> minXY = ArrayUtil.maxIndexAndValue(auto, 1, 1);
-
-        return new T2[] { new T2<>(new Pos(minX.getA(), 0), minX.getB()),
-                          new T2<>(new Pos(0, minY.getA()), minY.getB()),
-                          minXY
-        };
-    }
-
-    public Iterable<T2<Pos, Integer>> getBasisVectors(ColorGrid grid, int bases)
+    public List<Symmetry> getTransSymmetries(ColorGrid grid, int bases)
     {
         int[][] auto = autoTransCorr(grid.toInt());
         auto[0][0] = 0;
 
         PriorityQueue<T2<Pos, Integer>> top = new PriorityQueue<>((o1, o2) -> o1.getB() < o2.getB() ? -1 :
-                                                                            o1.getB() > o2.getB() ? 1 : 0);
+                                                                              o1.getB() > o2.getB() ? 1 : 0);
 
         for(int y = 0; y < auto.length; ++y)
         {
@@ -544,33 +532,123 @@ public class Pattern
             }
         }
 
-        return top;
+        List<Symmetry> syms = new ArrayList<>();
+        for(T2<Pos, Integer> trans : top)
+        {
+            Symmetry sym = new Symmetry(SymmetryType.Trans, false, trans.getA(), trans.getB());
+            syms.add(sym);
+        }
+
+        return syms;
     }
 
-    public ColorGrid infill(ColorGrid input)
+    public ColorGrid infill(ColorGrid input, List<Symmetry> symmetries)
     {
+        // translational symmetry
         ColorGrid guess = input.copy();
-        Iterable<T2<Pos, Integer>> bases = getBasisVectors(input, 2);
+        int h = guess.getHeight();
+        int w = guess.getWidth();
 
-        for(int y = 0; y < guess.getHeight(); ++y) {
-            for(int x = 0; x < guess.getWidth(); ++x) {
-                int[] counts = new int[Colour.values().length];
+        int[][][] counts = new int[h][w][Colour.values().length];
 
-                Pos xy = new Pos(x, y);
-                for(T2<Pos, Integer> base : bases) {
+        for (Symmetry symmetry : symmetries)
+        {
+            Pos f = symmetry.pos;
+
+            switch (symmetry.type)
+            {
+                case Trans:
+                {
                     int iSpan = 3;
-                    for(int i = -iSpan; i <= iSpan; ++i) {
-                        Pos scaled = base.getA().times(i);
-                        Pos p = xy.plus(scaled);
+                    for(int y = 0; y < guess.getHeight(); ++y) {
+                        for(int x = 0; x < guess.getWidth(); ++x) {
+                            Pos xy = new Pos(x, y);
+                            for(int i = -iSpan; i <= iSpan; ++i) {
+                                Pos scaled = symmetry.pos.times(i);
+                                Pos p = xy.plus(scaled);
 
-                        if(guess.isNotEmpty(p)) {
-                            Colour c = guess.get(p);
-                            counts[c.ordinal()] += base.getB();
+                                if(guess.isNotEmpty(p)) {
+                                    Colour c = guess.get(p);
+                                    counts[y][x][c.ordinal()] += symmetry.cellsObeying;
+                                }
+                            }
                         }
                     }
+                    break;
                 }
 
-                T2<Integer, Integer> idxVal = ArrayUtil.maxIndexAndValue(counts, 0);
+                case Horz:
+                {
+                    int offset = symmetry.isEven ? -1 : 0;
+                    int foldY = symmetry.pos.y; // when even, foldY == foldY - 1, and foldY + i == foldY - 1 - i
+                    for(int y = 0; y < guess.getHeight(); ++y) {
+                        for (int x = 0; x < guess.getWidth(); ++x) {
+                            Pos src = new Pos(x, 2 * foldY + offset - y);
+
+                            if(guess.isNotEmpty(src)) {
+                                Colour c = guess.get(src);
+                                counts[y][x][c.ordinal()] += symmetry.cellsObeying;
+                            }
+                        }
+                    }
+                    break;
+                }
+
+                case Vert:
+                {
+                    // when even, foldX == foldX - 1, and foldX + i == foldX - 1 - i
+                    int offset = symmetry.isEven ? -1 : 0;
+                    int foldX = symmetry.pos.x;
+
+                    for(int y = 0; y < guess.getHeight(); ++y) {
+                        for (int x = 0; x < guess.getWidth(); ++x) {
+                            Pos src = new Pos(2 * foldX + offset - x, y);
+
+                            // if the source is "empty", we don't cast a vote
+                            if(guess.isNotEmpty(src)) {
+                                Colour c = guess.get(src);
+                                counts[y][x][c.ordinal()] += symmetry.cellsObeying;
+                            }
+                        }
+                    }
+
+                    break;
+                }
+
+                case Diag:
+                case NegDiag:
+                {
+                    for(int y = 0; y < guess.getHeight(); ++y) {
+                        for (int x = 0; x < guess.getWidth(); ++x) {
+                            int c = (y - x + f.x - f.y) / 2;
+                            int d = (x + y - f.x - f.y) / 2;
+
+                            Pos delta = new Pos(c + d, d - c);
+                            if(symmetry.type == SymmetryType.NegDiag)
+                                delta = delta.times(-1);
+
+                            Pos src = f.plus(delta);
+
+                            // if the source is "empty" or out of bounds, we don't cast a vote
+                            if(guess.isNotEmpty(src)) {
+                                Colour col = guess.get(src);
+                                counts[y][x][col.ordinal()] += symmetry.cellsObeying;
+                            }
+                        }
+                    }
+
+                    break;
+                }
+            }
+
+        }
+
+        for(int y = 0; y < guess.getHeight(); ++y)
+        {
+            for (int x = 0; x < guess.getWidth(); ++x)
+            {
+                Pos xy = new Pos(x, y);
+                T2<Integer, Integer> idxVal = ArrayUtil.maxIndexAndValue(counts[y][x], 0);
                 Colour bestColor = Colour.toColour(idxVal.getA());
                 guess.set(xy, bestColor);
             }
@@ -578,6 +656,22 @@ public class Pattern
 
         return guess;
     }
+
+    public List<Symmetry> getAllSymmetries(ColorGrid input)
+    {
+        int[][] data = input.toInt();
+
+        // translational
+        List<Symmetry> bases = getTransSymmetries(input, 2);
+
+        // folding
+        T2<float[][], List<Symmetry>> syms = getFoldingSymmetries(data);
+
+        List<Symmetry> symmetries = syms.getB();
+        symmetries.addAll(bases);
+        return symmetries;
+    }
+
 
     public float[][] autocorrelation2D(ColorGrid grid)
     {

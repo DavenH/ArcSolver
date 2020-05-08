@@ -3,6 +3,7 @@ package viz;
 import gen.grid.ColorGrid;
 import gen.primitives.Colour;
 import gen.primitives.Pos;
+import gen.priors.abstraction.Symmetry;
 import gen.priors.pattern.Pattern;
 import javafx.scene.Node;
 import javafx.scene.control.Label;
@@ -51,22 +52,22 @@ public class PatternPreviewer extends SimplePreviewer
 
                 int origErrors = sample.input.compare(sample.output, (a, b) -> a.equals(b) ? 0 : 1, Integer::sum, 0);
                 ColorGrid guess = sample.input.copy();
-                Iterable<T2<Pos, Integer>> bases = pattern.getBasisVectors(inputCopy, 2);
+                List<Symmetry> bases = pattern.getTransSymmetries(inputCopy, 2);
 
                 for(int y = 0; y < inputCopy.getHeight(); ++y) {
                     for(int x = 0; x < inputCopy.getWidth(); ++x) {
                         float[] counts = new float[Colour.values().length];
 
                         Pos xy = new Pos(x, y);
-                        for(T2<Pos, Integer> base : bases) {
+                        for(Symmetry base : bases) {
                             int iSpan = 3;
                             for(int i = -iSpan; i <= iSpan; ++i) {
-                                Pos scaled = base.getA().times(i);
+                                Pos scaled = base.pos.times(i);
                                 Pos p = xy.plus(scaled);
 
                                 if(inputCopy.isNotEmpty(p)) {
                                     Colour c = inputCopy.get(p);
-                                    counts[c.ordinal()] += base.getB();
+                                    counts[c.ordinal()] += base.cellsObeying;
                                 }
                             }
                         }

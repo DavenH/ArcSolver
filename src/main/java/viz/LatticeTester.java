@@ -113,9 +113,9 @@ public class LatticeTester extends SimplePreviewer
 //
 //                ColorGrid constructedOutput = sample.input.copy();
 //                ColorGrid guess = constructedOutput.copy();
-////                Pos pos = pattern.getBasisVectors(constructedOutput);
+////                Pos pos = pattern.getTransSymmetries(constructedOutput);
 //
-//                Iterable<T2<Pos, Float>> bases = pattern.getBasisVectors(constructedOutput, 3);
+//                Iterable<T2<Pos, Float>> bases = pattern.getTransSymmetries(constructedOutput, 3);
 //
 //                constructedOutput.setBackground(Colour.Black);
 //
