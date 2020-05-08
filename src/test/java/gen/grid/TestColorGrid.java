@@ -1,6 +1,9 @@
 package gen.grid;
 
 import gen.priors.adt.Array;
+import problem.Task;
+
+import java.util.List;
 
 public class TestColorGrid extends GridTest
 {
@@ -47,6 +50,11 @@ public class TestColorGrid extends GridTest
         log(cg.toString());
 
         log("is same as original = " + cg.equals(grid));
+    }
+
+    public void testBuildTree()
+    {
+        List<Task> tasks = getTasks(new int[] {73,174,202,241,286,350,399});
     }
 
     public static void main(String[] args)

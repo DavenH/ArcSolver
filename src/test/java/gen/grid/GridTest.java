@@ -1,12 +1,9 @@
 package gen.grid;
 
-public class GridTest
-{
-    public static void log(Object obj)
-    {
-        System.out.println(obj == null ? null : obj.toString());
-    }
+import common.Test;
 
+public class GridTest extends Test
+{
     public static ColorGrid makeShapelyGrid()
     {
         ColorGrid grid = new ColorGrid(null,
@@ -30,10 +27,5 @@ public class GridTest
                                              "90123491049384710" +
                                              "234817341", 9);
         return grid;
-    }
-
-    public static void line()
-    {
-        log("\n-----------------------------------------\n");
     }
 }

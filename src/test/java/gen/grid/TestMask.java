@@ -3,7 +3,7 @@ package gen.grid;
 import gen.primitives.Colour;
 import gen.primitives.Pos;
 import gen.priors.abstraction.ShapeHashAttr;
-import gen.priors.abstraction.Symmetry;
+import gen.priors.abstraction.SymmetryType;
 
 import java.util.Set;
 
@@ -24,13 +24,13 @@ public class TestMask extends GridTest
         Mask bottom = m.bottom();
 
         board.draw(m);
-        log("\noriginal:\n" + m.toString());
-        log("\nboard:\n" + board.toString());
+        log2("original:\n" + m.toString());
+        log2("board:\n" + board.toString());
 
-        log("\ntop:\n" + top.toString());
-        log("\nleft:\n" + left.toString());
-        log("\nright:\n" + right.toString());
-        log("\nbott:\n" + bottom.toString());
+        log2("top:\n" + top.toString());
+        log2("left:\n" + left.toString());
+        log2("right:\n" + right.toString());
+        log2("bott:\n" + bottom.toString());
     }
 
     public void testOutsideCompass()
@@ -52,8 +52,8 @@ public class TestMask extends GridTest
         board.draw(leftOf, Colour.Orange);
         board.draw(rightOf, Colour.Blue);
 
-        log("\nOriginal:\n" + m.toString());
-        log("\nBoard:\n" + board.toString());
+        log2("Original:\n" + m.toString());
+        log2("Board:\n" + board.toString());
     }
 
     public void testOtherFocuses()
@@ -65,24 +65,24 @@ public class TestMask extends GridTest
         m.setPos(new Pos(1,1));
         m.setBrush(Colour.Yellow);
 
-        log("\noriginal:\n" + m.toString());
+        log2("original:\n" + m.toString());
 
         Mask around = m.around();
-        log("\nAround\n" + around.toString());
+        log2("Around\n" + around.toString());
         board.draw(around, Colour.Blue);
-        log("\nwith around:\n" + board.toString());
+        log2("with around:\n" + board.toString());
 
         Mask corners = m.corners();
         board.draw(corners, Colour.Red);
-        log("\ncorners\n" + corners.toString());
-        log("\nwith corners:\n" + board.toString());
+        log2("corners\n" + corners.toString());
+        log2("with corners:\n" + board.toString());
 
         board = new ColorGrid(null, 6, 6);
         m = new Mask(board, "0010110111111111", 4);
 
         Mask perimeter = m.perimeter();
         board.draw(perimeter, Colour.Grey);
-        log("\nperimeter\n" + perimeter.toString());
+        log2("perimeter\n" + perimeter.toString());
     }
 
     public void testBinaryOps()
@@ -97,14 +97,14 @@ public class TestMask extends GridTest
         board.draw(a, Colour.Red);
         board.draw(b, Colour.Cyan);
 
-        log("\nA\n" + a.toString());
-        log("\nB\n" + b.toString());
-        log("\nBoard\n" + board.toString());
-        log("\nOr A B\n" + a.or(b).toString());
-        log("\nAnd A B\n" + a.and(b).toString());
-        log("\nXOR A B\n" + a.xor(b).toString());
-        log("\nnand A B\n" + a.nand(b).toString());
-        log("\nneg A B\n" + a.neg(b).toString());
+        log2("A\n" + a.toString());
+        log2("B\n" + b.toString());
+        log2("Board\n" + board.toString());
+        log2("Or A B\n" + a.or(b).toString());
+        log2("And A B\n" + a.and(b).toString());
+        log2("XOR A B\n" + a.xor(b).toString());
+        log2("nand A B\n" + a.nand(b).toString());
+        log2("neg A B\n" + a.neg(b).toString());
     }
 
     public void testTrim()
@@ -134,10 +134,10 @@ public class TestMask extends GridTest
         Mask between = a.between(b);
         board.draw(between, Colour.Blue);
 
-        log("\nBoard\n" + board.toString());
-        log("\nA\n" + a.toString());
-        log("\nB\n" + b.toString());
-        log("\nbetween\n" + between.toString());
+        log2("Board\n" + board.toString());
+        log2("A\n" + a.toString());
+        log2("B\n" + b.toString());
+        log2("between\n" + between.toString());
     }
 
     private void testRotations()
@@ -163,21 +163,22 @@ public class TestMask extends GridTest
     {
         line();
         log("Original hash: " + m.hash());
-        Set<Symmetry> syms = m.getSymmetries();
+
+        Set<SymmetryType> syms = m.getSymmetries();
 
         log("Expecting " + expected + " symmetries:");
         log(syms.toString());
-
         log(m.toString());
-
         log("Hashes of different symmetries: ");
-        for(Symmetry sym : Symmetry.values())
+
+        for(SymmetryType sym : SymmetryType.values())
         {
             log(sym.toString());
 
             Grid symMask = m.reflect(sym);
             log(symMask.hash());
         }
+
         line();
     }
 
@@ -186,11 +187,13 @@ public class TestMask extends GridTest
         ColorGrid board = new ColorGrid(null, 10, 10);
         Mask fourSym = new Mask(board, "1001000000001001", 4);   // original
         Mask vertSym = new Mask(board, "1001100010001001", 4);   // original
+
         reportSymmetries(fourSym, "horz/vert/diag/negdiag");
         reportSymmetries(vertSym, "vert");
 
         ColorGrid fourSym2 = new ColorGrid(board, "1551566556651551", 4);   // original
         ColorGrid negdiag = new ColorGrid(board, "0002002002002000", 4);   // original
+
         reportSymmetries(fourSym2, "horz/vert/diag/negdiag");
         reportSymmetries(negdiag, "negdiag");
     }
@@ -216,7 +219,7 @@ public class TestMask extends GridTest
 //        log("Hash e = " + e.hash());
 //        log("Hash f = " + f.hash());
 
-        log("\nExpecting a == b == d == e != c");
+        log2("Expecting a == b == d == e != c");
         log("Shape hash a = " + new ShapeHashAttr<>(a).getValue());
 //        log("Shape hash b = " + new ShapeHashAttr<>(b).getValue());
 //        log("Shape hash c = " + new ShapeHashAttr<>(c).getValue());

@@ -2,10 +2,15 @@ package gen.grid;
 
 import gen.primitives.Colour;
 import gen.primitives.Pos;
-import gen.priors.abstraction.*;
+import gen.priors.abstraction.AttrNames;
+import gen.priors.abstraction.Attribute;
+import gen.priors.abstraction.ValueCategoricalAttr;
 import gen.priors.adt.Array;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.function.BiFunction;
 import java.util.function.BinaryOperator;
 
@@ -555,11 +560,6 @@ public class ColorGrid extends Grid<Colour>
         return data;
     }
 
-    public void dissolveCrosshatch(Colour crosshatch)
-    {
-
-    }
-
     public float[][] toFloat()
     {
         float[][] array = new float[height][width];
@@ -569,5 +569,103 @@ public class ColorGrid extends Grid<Colour>
                 array[y][x] = get(x, y).ordinal();
 
         return array;
+    }
+
+    public int[][] toInt()
+    {
+        int[][] array = new int[height][width];
+
+        for(int y = 0; y < height; ++y)
+            for(int x = 0; x < width; ++x)
+                array[y][x] = get(x, y).ordinal();
+
+        return array;
+    }
+
+    public void buildTreeByEntropySplits(boolean horizontal)
+    {
+        EntropyData entropyData = calculateCellTransitions();
+
+        // horz means that horizontal lines that were measured for transitions, not the arrangement of the entropy array relative to the board
+        int lastI = 0;
+        ColorGrid grid = copy();
+        float[] data = horizontal ? entropyData.horz : entropyData.vert;
+
+        children.clear();
+        for(int i = 0; i < data.length; ++i)
+        {
+            int startI = i;
+            while(i < data.length && data[i] < 1e-4f)
+                ++i;
+
+            int endI = i;
+
+            if(startI - lastI > 0)
+            {
+                // negating the flag because horizontal refers to which lines were measured for transitions, so horz lines will produce splits stacked vertically
+                ColorGrid one = grid.removeFromOriginEdge(! horizontal, startI - lastI);
+                children.add(one);
+            }
+
+            if(endI - startI > 0)
+            {
+                ColorGrid two = grid.removeFromOriginEdge(! horizontal, endI - startI);
+                children.add(two);
+            }
+
+            lastI = startI;
+        }
+
+        if(grid.getDim(horizontal ? 1 : 0) > 0)
+            children.add(grid);
+
+        // TODO add masks?
+
+        for(Grid child : children)
+        {
+            if(child instanceof ColorGrid)
+                ((ColorGrid)child).buildTreeByEntropySplits(! horizontal);
+        }
+    }
+
+    public ColorGrid removeFromOriginEdge(boolean isFromBottomRatherThanLeft, int length)
+    {
+
+        if(isFromBottomRatherThanLeft)
+        {
+            ColorGrid subsection = cloneInstance(width, length);
+            Colour[][] oldData = grid;
+            int oldHeight = height;
+
+            resize(width, height - length);
+
+            for(int y = 0; y < subsection.getHeight(); ++y)
+                for(int x = 0; x < subsection.getWidth(); ++x)
+                    subsection.set(x, y, oldData[y][x]);
+
+            for(int y = length; y < oldHeight; ++y)
+                for(int x = 0; x < width; ++x)
+                    set(x, y - length, oldData[y][x]);
+
+            return subsection;
+        }
+        else
+        {
+            ColorGrid subsection = cloneInstance(length, height);
+            Colour[][] oldData = grid;
+            int oldWidth = width;
+
+            resize(width - length, height);
+
+            for(int y = 0; y < subsection.getHeight(); ++y)
+                for(int x = 0; x < subsection.getWidth(); ++x)
+                    subsection.set(x, y, oldData[y][x]);
+
+            for(int x = length; x < oldWidth; ++x)
+                for(int y = 0; y < subsection.getHeight(); ++y)
+                    set(x - length, y, oldData[y][x]);
+
+            return subsection;
+        }
     }
 }

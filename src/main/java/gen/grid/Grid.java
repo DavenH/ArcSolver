@@ -73,7 +73,7 @@ public abstract class Grid<T>
     {
         Map<AttrNames, Attribute> attributes = new HashMap<>();
 
-        Set<Symmetry> symmetries = getSymmetries();
+        Set<SymmetryType> symmetries = getSymmetries();
         attributes.put(AttrNames.SymmetrySet, new ValueCategoricalAttr<>(symmetries));
         attributes.put(AttrNames.ShapeHash, new ShapeHashAttr(this));
         attributes.put(AttrNames.X, new ValueCategoricalAttr<>(pos.x));
@@ -86,21 +86,21 @@ public abstract class Grid<T>
         return attributes;
     }
 
-    public Set<Symmetry> getSymmetries()
+    public Set<SymmetryType> getSymmetries()
     {
-        Set<Symmetry> syms = new HashSet<>();
+        Set<SymmetryType> syms = new HashSet<>();
 
-        if(equals(reflect(Symmetry.Horz)))
-            syms.add(Symmetry.Horz);
-        if(equals(reflect(Symmetry.Vert)))
-            syms.add(Symmetry.Vert);
+        if(equals(reflect(SymmetryType.Horz)))
+            syms.add(SymmetryType.Horz);
+        if(equals(reflect(SymmetryType.Vert)))
+            syms.add(SymmetryType.Vert);
 
         if(getWidth() == getHeight())
         {
-            if(equals(reflect(Symmetry.Diag)))
-                syms.add(Symmetry.Diag);
-            if(equals(reflect(Symmetry.NegDiag)))
-                syms.add(Symmetry.NegDiag);
+            if(equals(reflect(SymmetryType.Diag)))
+                syms.add(SymmetryType.Diag);
+            if(equals(reflect(SymmetryType.NegDiag)))
+                syms.add(SymmetryType.NegDiag);
         }
 
         // translational symmetries
@@ -111,7 +111,7 @@ public abstract class Grid<T>
         return syms;
     }
 
-    public Grid<T> reflect(Symmetry sym)
+    public Grid<T> reflect(SymmetryType sym)
     {
         Grid<T> m = (sym.isDiagonal()) ?
                     cloneInstance(getHeight(), getWidth()) :

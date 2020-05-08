@@ -2,16 +2,16 @@ package gen.priors.abstraction;
 
 import gen.priors.spatial.Compass;
 
-public enum Symmetry
+public enum SymmetryType
 {
     Diag,
     NegDiag,
     Vert,
     Horz,
-//    Trans,
+    Trans,
     ;
 
-    public static Symmetry fromCompass(Compass dir)
+    public static SymmetryType fromCompass(Compass dir)
     {
         switch (dir)
         {

@@ -23,7 +23,7 @@ public class ShapeHashAttr<T> extends ValueCategoricalAttr<Integer>
                 minHash = Math.min(hash, minHash);
             }
 
-            for(Symmetry sym : Symmetry.values())
+            for(SymmetryType sym : SymmetryType.values())
             {
                 int hash = scaled.reflect(sym).hash();
                 minHash = Math.min(hash, minHash);

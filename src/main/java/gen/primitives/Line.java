@@ -3,7 +3,7 @@ package gen.primitives;
 import gen.grid.Grid;
 import gen.grid.Mask;
 import gen.priors.abstraction.ShapeAttr;
-import gen.priors.abstraction.Symmetry;
+import gen.priors.abstraction.SymmetryType;
 import gen.priors.spatial.Vector;
 
 public class Line extends Mask
@@ -20,8 +20,8 @@ public class Line extends Mask
     public Line(Grid board, Vector vector, int thickness)
     {
         super(board,
-              Symmetry.fromCompass(vector.direction) == Symmetry.Vert ? 1 : vector.length,
-              Symmetry.fromCompass(vector.direction) == Symmetry.Horz ? 1 : vector.length);
+              SymmetryType.fromCompass(vector.direction) == SymmetryType.Vert ? 1 : vector.length,
+              SymmetryType.fromCompass(vector.direction) == SymmetryType.Horz ? 1 : vector.length);
 
         this.vector = vector;
         this.thickness = thickness;

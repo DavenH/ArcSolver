@@ -49,6 +49,8 @@ public class Pos
     public Pos minus(Pos d)         { return plus(-d.x, -d.y); }
     public Pos minus(int x, int y)  { return plus(-x, -y); }
     public Pos transpose()          { return new Pos(y, x); }
+    public Pos times(int mx, int my){ return new Pos(x * mx, y * my); }
+    public Pos times(int m)         { return new Pos(x * m, y * m); }
 
     public Pos copy()               { return new Pos(x, y); }
 

@@ -1,33 +1,167 @@
 package priors.pattern;
 
+import common.Test;
 import gen.grid.ColorGrid;
+import gen.primitives.Colour;
 import gen.primitives.Pos;
 import gen.priors.pattern.Pattern;
-import problem.Controller;
 import problem.Task;
 import util.ArrayUtil;
 import util.T2;
 
-import java.io.File;
+import java.util.Arrays;
 import java.util.List;
 
-public class TestPattern
+public class TestPattern extends Test
 {
     Pattern pattern = new Pattern();
 
-    public void testCrosshatchDetection()
+    public void testInfill2()
     {
-        List<Task> tasks = getTasks(new int[]{ 243, 8, 10, 79, 32, 184, 60, 256, 162, 148, 58, 390, 313 });
+        List<Task> tasks = getTasks(new int[]{ 60 });
+
         for (Task task : tasks)
         {
             System.out.println("---------------------------");
 
             List<Task.Sample> train = task.getTrainSamples();
+            List<Task.Sample> train2 = Arrays.asList(train.get(3));
+
+            for (Task.Sample sample : train2)
+            {
+                ColorGrid constructedOutput = sample.input.copy();
+                ColorGrid guess = sample.input.copy();
+
+                System.out.println(constructedOutput.toString());
+
+                Iterable<T2<Pos, Integer>> bases = pattern.getBasisVectors(constructedOutput, 2);
+                constructedOutput.setBackground(Colour.Black);
+
+                for(T2<Pos, Integer> base : bases)
+                    System.out.println(base.getA() + ", " + base.getB());
+
+                for(int y = 0; y < constructedOutput.getHeight(); ++y) {
+                    for(int x = 0; x < constructedOutput.getWidth(); ++x) {
+                        int[] counts = new int[Colour.values().length];
+                        Pos xy = new Pos(x, y);
+                        for(T2<Pos, Integer> base : bases) {
+                            int iSpan = 3;
+                            for(int i = -iSpan; i <= iSpan; ++i) {
+                                Pos scaled = base.getA().times(i);
+                                Pos p = xy.plus(scaled);
+
+                                if(constructedOutput.isNotEmpty(p)) {
+                                    Colour c = constructedOutput.get(p);
+                                    System.out.println(x + ", " + y + "; " + i + "; " + p.x + ", " + p.y + " -\t" + c);
+                                    counts[c.ordinal()] += base.getB();
+                                }
+                            }
+                        }
+
+                        T2<Integer, Integer> idxVal = ArrayUtil.maxIndexAndValue(counts, 0);
+                        Colour bestColor = Colour.toColour(idxVal.getA());
+                        guess.set(xy, bestColor);
+                        boolean correct = sample.output.get(xy) == bestColor;
+
+                        System.out.println(x + ", " + y + ": [" + idxVal.getB() + "] best = " + bestColor);
+                        if(! correct)
+                            System.out.println("Incorrect");
+
+                    }
+                }
+
+                // try to reconstruct by copying texture along these basic vectors and vote
+                int numErrors = guess.compare(sample.output, (a, b) -> a.equals(b) ? 0 : 1, Integer::sum, 0);
+                int origErrors = sample.input.compare(sample.output, (a, b) -> a.equals(b) ? 0 : 1, Integer::sum, 0);
+
+                System.out.println(guess.toString());
+                System.out.println("Num errors: " + numErrors + " origin errors: " + origErrors);
+            }
+        }
+    }
+
+    public void testFindSymmetry()
+    {
+        List<Task> tasks = getTasks(new int[] {73,174,202,241,286,350,399});
+
+
+        for (Task task : tasks)
+        {
+            List<Task.Sample> train = task.getTrainSamples();
+
             for (Task.Sample sample : train)
             {
-                ColorGrid constructedOutput = pattern.reduceFourierNoise(sample.input, 5, 2);
+                Iterable<T2<Pos, Integer>> symmetrySeedsI = pattern.findSymmetrySeeds(sample.input, 5);
+                log("Input:");
+                log(symmetrySeedsI);
 
+                Iterable<T2<Pos, Integer>> symmetrySeedsO = pattern.findSymmetrySeeds(sample.output, 5);
+                log("Output:");
+                log(symmetrySeedsO);
+            }
+        }
+    }
 
+    public void testCrosshatchDetect()
+    {
+        List<Task> tasks = getTasks(new int[]{ 243, 8, 10, 79, 32, 184, 60, 256, 162, 148, 58, 390, 313 });
+//        List<Task> tasks = getTasks(new int[]{ 8  });
+        // what are the "null hypothesis" kernels? Ones that will reject all crosshatches
+        int[][] kernel = new int[][]
+        {
+                             { 1,  1,  1 },
+                             { 1, -1,  1 },
+                         { 1,  1, -1,  1,  1 },
+                     { 1,  1,  1, -1,  1,  1,  1 },
+                 { 1,  1,  1,  1, -1,  1,  1,  1,  1 },
+             { 1,  1,  1,  1,  1, -1,  1,  1,  1,  1,  1 }
+        };
+
+        for (Task task : tasks)
+        {
+            List<Task.Sample> train = task.getTrainSamples();
+
+            for (Task.Sample sample : train)
+            {
+                ColorGrid input = sample.input;
+                ColorGrid.EntropyData trans = input.calculateCellTransitions();
+
+                float maxVal = 0;
+                int bestIdx = -1;
+
+                for(int j = 0; j < kernel.length; ++j)
+                {
+                    int[] negPosNeg = kernel[j];
+                    float avg = ArrayUtil.average(negPosNeg);
+                    float[][] arrs = new float[][] { trans.horz, trans.vert };
+                    for(float[] arr : arrs)
+                    {
+                        for(int k = 0; k < arr.length; ++k)
+                        {
+                            float sum = 0;
+                            float negsum = 0;
+
+                            for(int i = 0; i < negPosNeg.length; ++i)
+                            {
+                                int arrIdx = k + i - (negPosNeg.length - 1) / 2;
+
+                                // treat out of bounds as a negative
+                                boolean outBounds = arrIdx < 0 || arrIdx >= arr.length;
+                                sum     += outBounds ? avg : (negPosNeg[i] - avg) * arr[arrIdx];
+                                negsum  += outBounds ? avg : (avg - negPosNeg[i]) * arr[arrIdx];
+                            }
+
+                            float delta = sum - negsum;
+                            if(delta > maxVal)
+                            {
+                                bestIdx = j;
+                                maxVal = delta;
+                            }
+                        }
+                    }
+                }
+
+                System.out.println("Best index " + bestIdx + " maxval: " + maxVal);
             }
         }
     }
@@ -61,26 +195,18 @@ public class TestPattern
 
     public void testAutocorrelation2D()
     {
-        float[][] subpattern = { { 1, 3, 4, 5, 2 }, { 4, 4, 7, 1, 2 }, { 5, 5, 7, 3, 4 }, { 1, 5, 5, 2, 3 } };
+        int[][] subpattern = { { 1, 3, 4, 5, 2 },
+                               { 4, 4, 7, 1, 2 },
+                               { 5, 5, 7, 3, 4 },
+                               { 1, 5, 5, 2, 3 } };
 
-        float[][] periodicPat = makePeriodic(subpattern, 4, 4);
+        int[][] periodicPat = makePeriodic(subpattern, 4, 4);
 
-        for (int y = 0; y < periodicPat.length; ++y) {
-            for(int x = 0 ; x < periodicPat[y].length; ++x) {
-                System.out.print(String.format("%3.1f ", periodicPat[y][x]));
-            }
-            System.out.println();
-        }
-        System.out.println();
+        ArrayUtil.print(periodicPat);
+        float[][] floatArr = ArrayUtil.toFloat(periodicPat);
+        float[][] correlated = pattern.autocorrelation2D(floatArr);
 
-        float[][] correlated = pattern.autocorrelation2D(periodicPat);
-
-        for (int y = 1; y < correlated.length; ++y) {
-            for(int x = 1 ; x < correlated[y].length; ++x) {
-                System.out.print(String.format("%3.1f ", correlated[y][x]));
-            }
-            System.out.println();
-        }
+        ArrayUtil.print(correlated, 1);
     }
 
     private float[] makePeriodic(float[] subpattern, int copies)
@@ -95,12 +221,12 @@ public class TestPattern
         return array;
     }
 
-    private float[][] makePeriodic(float[][] subpattern, int copiesW, int copiesH)
+    private int[][] makePeriodic(int[][] subpattern, int copiesW, int copiesH)
     {
         int numRows = subpattern.length;
         int numCols = subpattern[0].length;
-        float[][] array = new float[copiesH * numRows][copiesW * numCols];
-        float average = 0;
+        int[][] array = new int[copiesH * numRows][copiesW * numCols];
+        int average = 0;
 
         for(int i = 0; i < subpattern.length; ++i)
             for(int j = 0; j < subpattern[i].length; ++j)
@@ -126,45 +252,46 @@ public class TestPattern
     {
         float subpattern[] = new float[]{ 6, 2, 1, 5, 5, 1, 4, 2 };
         float values[] = makePeriodic(subpattern, 16);
-        float[] autodiff = pattern.autodiff(values);
+        float[] autodiff = pattern.autoTransCorr(values);
 
         ArrayUtil.print(autodiff, 1);
         T2<Integer, Float> minima = ArrayUtil.minIndexAndValue(autodiff, 1);
         System.out.println();
-        System.out.println("Expected periodic length: " + subpattern.length + " autodiff min index: " + minima.getA());
+        System.out.println("Expected periodic length: " + subpattern.length + " autoTransCorr min index: " + minima.getA());
     }
 
     public void testAutoDiff2D()
     {
-        float[][] subpattern = { { 1, 3, 4, 5, 2, 3 },
+        int[][] subpattern = { { 1, 3, 4, 5, 2, 3 },
                                  { 4, 4, 7, 1, 2, 2 },
                                  { 5, 5, 7, 3, 4, 1 },
                                  { 1, 5, 5, 2, 3, 7 } };
-        float values[][] = makePeriodic(subpattern, 4, 6);
+
+        int values[][] = makePeriodic(subpattern, 4, 6);
 
         long timeMillis = System.currentTimeMillis();
-        float[][] autodiff = pattern.autodiff(values);
+        int[][] autodiff = pattern.autoTransCorr(values);
         long endMillis = System.currentTimeMillis();
 
         System.out.println(endMillis - timeMillis + " millis");
         System.out.println();
 
-        ArrayUtil.print(autodiff, 2);
-        T2<Pos, Float> minima = ArrayUtil.maxIndexAndValue(autodiff, 1, 1);
+        ArrayUtil.print(autodiff);
+        T2<Pos, Integer> minima = ArrayUtil.maxIndexAndValue(autodiff, 1, 1);
         Pos minPos = minima.getA();
         System.out.println("Expected periodic length: (" + subpattern.length +
-                           ", " + subpattern[0].length + ") autodiff min position: " +
+                           ", " + subpattern[0].length + ") autoTransCorr min position: " +
                            minPos.toString() + " indicating subpattern dim recurs every " +
                            String.format("%dx%d", minPos.x, minPos.y) + " cells");
     }
 
     public void testInfill()
     {
-        int[] transGrids = { 16, 60, 304 }; //312
-        int[] mirroredGrids = { 73, 286, 393 };
+//        int[] grids = { 16, 60, 304 }; //312
+        int[] grids = { 73, 286, 393 };
         int totalErrors = 0;
 
-        List<Task> tasks = getTasks(transGrids);
+        List<Task> tasks = getTasks(grids);
 
         for(Task task : tasks)
         {
@@ -191,22 +318,18 @@ public class TestPattern
         System.out.println("Total errors: " + totalErrors);
     }
 
-    public List<Task> getTasks(int[] indices)
-    {
-        Controller controller = new Controller();
-        controller.loadTasks(new File("C:\\Users\\Public\\data\\ARC-master\\data\\"));
-        return controller.getTasks(indices, true);
-    }
-
     public static void main(String[] args)
     {
         TestPattern testFFT = new TestPattern();
 //        testFFT.testInfill();
 //        testFFT.testAutocorrelation1D();
 //        testFFT.testAutocorrelation2D();
-        testFFT.testAutoDiff1D();
+//        testFFT.testAutoDiff1D();
 //        testFFT.testGetPeak();
 //        testFFT.testAutoDiff2D();
+//        testFFT.testInfill2();
+//        testFFT.testCrosshatchDetect();
+        testFFT.testFindSymmetry();
     }
 
     private void testGetPeak()

@@ -2,7 +2,9 @@ package gen.dsl.arc;
 
 import gen.grid.ColorGrid;
 import gen.grid.Mask;
-import gen.primitives.*;
+import gen.primitives.Colour;
+import gen.primitives.Line;
+import gen.primitives.Pos;
 import gen.priors.adt.Array;
 import gen.priors.pattern.Pattern;
 import gen.priors.spatial.Compass;
@@ -22,13 +24,16 @@ public class Visitor extends ArcBaseVisitor<Object>
 {
     int indent;
 
-    private Map<String, Object> globalVariables = new HashMap<>();
+//    private Map<String, Object> globalVariables = new HashMap<>();
     private Map<String, BiConsumer<Object, Token>> specialVarConsumers = new HashMap<>();
     private Map<String, Supplier<Object>> specialVarSuppliers = new HashMap<>();
     private Set<String> immutableVars = new HashSet<>();
     private Map<String, Method> globalMethods = new HashMap<>();
     private Map<String, Method> localMethods = new HashMap<>();
-    private Map<String, Object> foreachVarBindName = new HashMap<>();
+    private Map<String, Function> definedMethods = new HashMap<>();
+    private List<Map<String, Object>> varScopes = new ArrayList<>();
+//    private Map<String, Object> foreachVarBindName = new HashMap<>();
+
     private Map<String, Visitor> namespaces = new HashMap<>();
 //    private Map<Class, Class> toPrimitive = new HashMap<>();
 
@@ -41,11 +46,31 @@ public class Visitor extends ArcBaseVisitor<Object>
     String namespaceName;
     private ColorGrid input;
 
+    private class Function
+    {
+        private Map<String, Object> args;
+        private ArcParser.BlockContext block;
+
+        public Function(Map<String, Object> args,
+                        ArcParser.BlockContext block)
+        {
+            this.args = args;
+            this.block = block;
+        }
+
+        Object invoke()
+        {
+            return visitBlock(block, args);
+        }
+    }
+
     public Visitor(String name, ArcParser parser)
     {
         indent = 0;
         this.namespaceName = name;
         this.recognizer = parser;
+
+        varScopes.add(new HashMap<>());
 
         try
         {
@@ -83,7 +108,6 @@ public class Visitor extends ArcBaseVisitor<Object>
             addLocalMethod("mask|java.lang.String|java.lang.Integer", Visitor.class.getMethod("mask", cs, ci));
             addLocalMethod("mask|java.lang.String|java.lang.Integer|gen.primitives.Colour", Visitor.class.getMethod("mask", cs, ci, Colour.class));
 //            public Mask mask(String bitString, Integer width, Colour colour)
-
 
             addLocalMethod("line|java.lang.Integer|gen.priors.spatial.Compass", Visitor.class.getMethod("line", ci, Compass.class));
             addLocalMethod("line|gen.primitives.Pos|java.lang.Integer|gen.priors.spatial.Compass", Visitor.class.getMethod("line", Pos.class, ci, Compass.class));
@@ -217,7 +241,6 @@ public class Visitor extends ArcBaseVisitor<Object>
 
     public Array list(Object one, Object two, Object thr)
     {
-
         Array list = new Array();
         list.add(one);
         list.add(two);
@@ -303,12 +326,12 @@ public class Visitor extends ArcBaseVisitor<Object>
 
     public void addGlobalVariable(String variableName, Object value)
     {
-        globalVariables.put(variableName, value);
+        getTopScope().put(variableName, value);
     }
 
     public Object getGlobalVariable(String variableName)
     {
-        return globalVariables.get(variableName);
+        return getTopScope().get(variableName);
     }
 
     public static String buildMethodName(String root, Class[] types)
@@ -378,6 +401,12 @@ public class Visitor extends ArcBaseVisitor<Object>
             {
                 String methodKey = buildMethodName(methodName, params.b);
 
+                if(definedMethods.containsKey(methodName))
+                {
+                    Function func = definedMethods.get(methodName);
+                    return func.invoke();
+                }
+
                 if(localMethods.containsKey(methodKey))
                 {
                     Method m = localMethods.get(methodKey);
@@ -405,6 +434,27 @@ public class Visitor extends ArcBaseVisitor<Object>
             Token startToken = ctx.getStart();
             throw new InterpreterException(startToken, e.getMessage());
         }
+    }
+
+
+    @Override public Object visitMethodDef(ArcParser.MethodDefContext ctx)
+    {
+        ArcParser.BlockContext block = ctx.block();
+        TerminalNode id = ctx.ID();
+
+
+        ArcParser.VarListContext args = ctx.varList();
+        List<TerminalNode> identifiers = args.ID();
+
+        Map<String, Object> newlyScoped = new HashMap<>();
+
+        for(TerminalNode node : identifiers)
+        {
+            newlyScoped.put(node.getText(), resolveVariable(node));
+        }
+
+        visitBlock(block, newlyScoped);
+        return null;
     }
 
     @Override
@@ -657,12 +707,10 @@ public class Visitor extends ArcBaseVisitor<Object>
     {
         for (Object val : iterable)
         {
-            foreachVarBindName.put(text, val);
-            visitBlock(ctx);
-            // whenever we see 'id' in block, bind to value
-        }
+            Map<String, Object> foreachVarBind = new HashMap<String, Object>(){{put(text, val);}};
 
-        foreachVarBindName.remove(text);
+            visitBlock(ctx, foreachVarBind);
+        }
     }
 
     @Override
@@ -694,6 +742,30 @@ public class Visitor extends ArcBaseVisitor<Object>
         }
         return null;
     }
+
+    @Override public Object visitBlock(ArcParser.BlockContext ctx)
+    {
+        return visitBlock(ctx, null);
+    }
+
+    public Object visitBlock(ArcParser.BlockContext ctx,
+                             Map<String, Object> boundVariables)
+    {
+        // push a new var-name map onto the variable 'stack'
+        Map<String, Object> newVarScope = new HashMap<>();
+
+        if(boundVariables != null)
+            newVarScope.putAll(boundVariables);
+            // add these vars (probably from foreach binding or function parameters) to that newly added map
+
+        varScopes.add(newVarScope);
+        visitChildren(ctx);
+        varScopes.remove(varScopes.size() - 1);
+        // pop the var-name map; any newly-added variables go out of scope
+
+        return null;
+    }
+
 
     private boolean handleIfBlock(Object value, ArcParser.BlockContext blockIfTrue)
     {
@@ -754,14 +826,16 @@ public class Visitor extends ArcBaseVisitor<Object>
         if(try0 != null)
             return try0.get();
 
-        Object try1 = foreachVarBindName.get(fieldName);
-        if(try1 != null)
-            return try1;
+        // start with the outermost
+        ListIterator<Map<String, Object>> li = varScopes.listIterator(varScopes.size());
+        while(li.hasPrevious())
+        {
+            Map<String, Object> scope = li.previous();
+            Object val = scope.get(fieldName);
 
-        Object try2 = globalVariables.get(fieldName);
-
-        if(try2 != null)
-            return try2;
+            if(val != null)
+                return val;
+        }
 
         throw new InterpreterException(varName.getSymbol(),
                                        "Cannot resolve variable " + fieldName + " within namespace " + namespaceName);
@@ -787,28 +861,22 @@ public class Visitor extends ArcBaseVisitor<Object>
 
         String identifier = varName.getText();
 
-        if(foreachVarBindName.containsKey(varName))
+        log("setting var " + identifier + " to " + value);
+
+        BiConsumer<Object, Token> consumer = specialVarConsumers.get(identifier);
+
+        if(consumer != null)
         {
-            foreachVarBindName.put(identifier, value);
+            consumer.accept(value, varName.getSymbol());
+        }
+        else if(immutableVars.contains(identifier))
+        {
+            throw new InterpreterException(varName.getSymbol(), "Cannot set the '" + identifier + "' variable");
         }
         else
         {
-            log("setting var " + identifier + " to " + value);
-
-            BiConsumer<Object, Token> consumer = specialVarConsumers.get(identifier);
-
-            if(consumer != null)
-            {
-                consumer.accept(value, varName.getSymbol());
-            }
-            else if(immutableVars.contains(identifier))
-            {
-                throw new InterpreterException(varName.getSymbol(), "Cannot set the '" + identifier + "' variable");
-            }
-            else
-            {
-                globalVariables.put(identifier, value);
-            }
+            Map<String, Object> scope = getTopScope();
+            scope.put(identifier, value);
         }
     }
 
@@ -1040,5 +1108,13 @@ public class Visitor extends ArcBaseVisitor<Object>
     public void addNamespace(String namespaceTag, Visitor visitorWithinScope)
     {
         namespaces.put(namespaceTag, visitorWithinScope);
+    }
+
+    Map<String, Object> getTopScope()
+    {
+        if(varScopes.size() == 0)
+            throw new RuntimeException("No variable scope!");
+
+        return varScopes.get(varScopes.size() - 1);
     }
 }
