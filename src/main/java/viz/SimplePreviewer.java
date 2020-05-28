@@ -8,17 +8,13 @@ import javafx.scene.control.ScrollPane;
 import javafx.scene.layout.TilePane;
 import javafx.stage.Stage;
 import problem.Controller;
-import problem.Task;
 
 import java.io.File;
 import java.net.URL;
-import java.util.List;
 
 public abstract class SimplePreviewer extends Application
 {
     Controller controller = new Controller();
-
-    private List<Task.Sample> samples;
 
     class Stats
     {

@@ -13,6 +13,7 @@ import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
 import javafx.scene.shape.StrokeType;
+import problem.Task;
 import util.ArrayUtil;
 import util.T2;
 
@@ -32,28 +33,35 @@ public class SymmetryViewer extends SimplePreviewer
     public void addBoardsToPane(TilePane tilePane)
     {
 //        int[] grids = new int[] { 202 };
-//        int[] grids = new int[] { 73, 174, 202, 241, 286, 350, 399 };
+        int[] grids = new int[] { 73, 174, 241, 286, 350, 399 };
 //        int[] grids = { 8, 32, 58, 16, 60, 109, 304 }; //312
-//        List<Task> tasks = controller.getTasks(grids,true);
+        List<Task> tasks = controller.getTasks(grids,true);
 //        List<Task> tasks = controller.getRandomTasks(10,true);
 
 
         int preferredWidth = 250;
         int preferredHeight = 250;
 
-//        for (Task task : tasks)
-//        {
-//            List<Task.Sample> train = task.getTrainSamples();
-//
-//            for (Task.Sample sample : train)
-//            {
-//                ColorGrid[] boards = new ColorGrid[] { sample.input, sample.output };
+        for (Task task : tasks)
+        {
+            List<Task.Sample> train = task.getTrainSamples();
 
-        ColorGrid boards[] = new ColorGrid[]{
+            for (Task.Sample sample : train)
+            {
+                ColorGrid[] boards = new ColorGrid[] { sample.input }; //, sample.output };
+
+//        ColorGrid boards[] = new ColorGrid[]{
+//                new ColorGrid(null, "0000021" +
+//                                    "0000012" +
+//                                    "0003100" +
+//                                    "0001300" +
+//                                    "0510000" +
+//                                    "0150000" +
+//                                    "1000000", 7),
 //                new ColorGrid(null, "0000002100000012000031000000130000510000001500004100000014000000", 8),
 //                new ColorGrid(null, "0000321000032120003212300001230000103000010000001000000000000000", 8),
 //                new ColorGrid(null, "1200000021000000001600000061000000001500000051000000001300000031", 8),
-                new ColorGrid(null, "1111111111111111111111111111111111111111111111111111111111111111", 8),
+//                new ColorGrid(null, "1111111111111111111111111111111111111111111111111111111111111111", 8),
 
 //                new ColorGrid(null, "11100000" +
 //                                    "11100000" +
@@ -63,7 +71,7 @@ public class SymmetryViewer extends SimplePreviewer
 //                                    "00000333" +
 //                                    "00000333" +
 //                                    "00000333", 8)
-        };
+//        };
 
 
         Map<SymmetryType, Color> symColors = new HashMap<>();
@@ -102,8 +110,10 @@ public class SymmetryViewer extends SimplePreviewer
                     int[][] intGrid = grid.toInt();
                     T2<float[][], List<Symmetry>> data = pattern.getFoldingSymmetries(intGrid);
 
+                    ColorGrid guess = pattern.infill(grid, data.getB());
+
                     VBox labels = new VBox(2);
-                    labels.getChildren().add(new Label(String.format("%d", 1))); // controller.getIndex(task.getTaskCode())))); //1)));
+                    labels.getChildren().add(new Label(String.format("%d", controller.getIndex(task.getTaskCode())))); //1)));
 
                     for(Symmetry sym : data.getB())
                         labels.getChildren().add(new Label(String.format("type=%s, E=%b, pos=%s, frac=%3.2f",
@@ -137,12 +147,15 @@ public class SymmetryViewer extends SimplePreviewer
 
                     Board autoBoard = new Board(autosym, preferredWidth, preferredHeight);
 //                    VBox diags = new VBox(3, diagBoard, negdiagBoard, autoBoard);
+
                     pair.getChildren().add(guessBoard);
                     pair.getChildren().add(autoBoard);
+                    pair.getChildren().add(new Board(guess, preferredWidth, preferredHeight));
+
                     tilePane.getChildren().add(pair);
                 }
 
             }
-//        }
-//    }
+        }
+    }
 }

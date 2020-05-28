@@ -34,6 +34,13 @@ public class TestColorGrid extends GridTest
         log("\nShapes\n");
     }
 
+    public void testEntropyTree()
+    {
+        ColorGrid grid = makeSegmentedGrid();
+
+        grid.buildTreeByEntropySplits(true);
+    }
+
     public void testDetectShapes()
     {
         log("Testing shapes");
@@ -60,6 +67,7 @@ public class TestColorGrid extends GridTest
     public static void main(String[] args)
     {
         TestColorGrid testColorGrid = new TestColorGrid();
-        testColorGrid.testEntropy();
+        testColorGrid.testEntropyTree();
+//        testColorGrid.testEntropy();
     }
 }

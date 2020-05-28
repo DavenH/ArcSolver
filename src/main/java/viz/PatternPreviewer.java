@@ -32,7 +32,6 @@ public class PatternPreviewer extends SimplePreviewer
 //        int[] grids = { 16, 60, 304, 312 };
         int[] grids = { 16, 60, 109, 304 }; //312
 //        int[] grids = { 60, 109 }; //312
-        controller.getTasks(grids, true);
 
         List<Task> tasks = controller.getTasks(grids,true);
         int preferredWidth = 250; //(1900 - samples.size() * 10 - 20) / (samples.size());

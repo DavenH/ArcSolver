@@ -352,18 +352,20 @@ public class Pattern
                 autosym[y][x] += imax * horzes.getB()[y - 1];
 
         // this is rather complex due to the way the diag array is packed, it spans in a backwards L shape from (0, 0) to (w, 0) then to (w, h)
-        Pos diagPos = new Pos(dmax.getA() < h ? 0 : dmax.getA() - h,
-                               dmax.getA() < h ? h - 1 - dmax.getA() : 0);
+        Pos diagPos = new Pos(dmax.getA() < h ? 0 : dmax.getA() - (h - 1),
+                              dmax.getA() < h ? h - 1 - dmax.getA() : 0);
 
         // this is rather complex due to the way the negdiag array is packed, it spans in an L shape from (0, h) to (0, 0) then to (w, 0)
-        Pos ndiagPos = new Pos(Math.min(w - 1, ndmax.getA()), ndmax.getA() < w ? 0 : ndmax.getA() - w);
+        Pos ndiagPos = new Pos(Math.min(w - 1, ndmax.getA()),
+                               ndmax.getA() < w ? 0 : ndmax.getA() - w);
 
         T2<Pos, Float> maxPos = ArrayUtil.maxIndexAndValue(autosym, 0, 0);
         int discount = Math.min(h, w) / 2;
+
         Symmetry hSym  = new Symmetry(SymmetryType.Horz,    false,  new Pos(0, hmax.getA()), hmax.getB());
-        Symmetry heSym = new Symmetry(SymmetryType.Horz,    true,   new Pos(0, hemax.getA()), hemax.getB());
+        Symmetry heSym = new Symmetry(SymmetryType.Horz,    true,   new Pos(0, hemax.getA() + 1), hemax.getB());
         Symmetry vSym  = new Symmetry(SymmetryType.Vert,    false,  new Pos(vmax.getA(), 0), vmax.getB());
-        Symmetry veSym = new Symmetry(SymmetryType.Vert,    true,   new Pos(vemax.getA(), 0), vemax.getB());
+        Symmetry veSym = new Symmetry(SymmetryType.Vert,    true,   new Pos(vemax.getA() + 1, 0), vemax.getB());
         Symmetry dSym  = new Symmetry(SymmetryType.NegDiag, false,  ndiagPos, ndmax.getB() - discount);
         Symmetry ndSym = new Symmetry(SymmetryType.Diag,    false,  diagPos, dmax.getB() - discount);
 
@@ -371,7 +373,6 @@ public class Pattern
 
         return new T2<>(autosym, syms);
     }
-
 
     public Pair<int[]> getHorzSymmetry(int[][] values)
     {
@@ -519,7 +520,6 @@ public class Pattern
 
         PriorityQueue<T2<Pos, Integer>> top = new PriorityQueue<>((o1, o2) -> o1.getB() < o2.getB() ? -1 :
                                                                               o1.getB() > o2.getB() ? 1 : 0);
-
         for(int y = 0; y < auto.length; ++y)
         {
             for(int x = 0; x < auto[y].length; ++x)
@@ -545,116 +545,132 @@ public class Pattern
     public ColorGrid infill(ColorGrid input, List<Symmetry> symmetries)
     {
         // translational symmetry
-        ColorGrid guess = input.copy();
-        int h = guess.getHeight();
-        int w = guess.getWidth();
+        int h = input.getHeight();
+        int w = input.getWidth();
+        int threshold = h * w / 3;
 
-        int[][][] counts = new int[h][w][Colour.values().length];
+        List<ColorGrid> gridsAndEntropy = new ArrayList<>();
 
-        for (Symmetry symmetry : symmetries)
+        for(Colour background : Colour.values())
         {
-            Pos f = symmetry.pos;
+            ColorGrid guess = input.copy();
 
-            switch (symmetry.type)
+            int[][][] counts = new int[h][w][Colour.values().length];
+            for(int y = 0; y < guess.getHeight(); ++y)
+                for (int x = 0; x < guess.getWidth(); ++x)
+                    counts[y][x][guess.get(x, y).ordinal()] = threshold * threshold;
+
+            guess.setBackground(background);
+
+            for (Symmetry symmetry : symmetries)
             {
-                case Trans:
-                {
-                    int iSpan = 3;
-                    for(int y = 0; y < guess.getHeight(); ++y) {
-                        for(int x = 0; x < guess.getWidth(); ++x) {
-                            Pos xy = new Pos(x, y);
-                            for(int i = -iSpan; i <= iSpan; ++i) {
-                                Pos scaled = symmetry.pos.times(i);
-                                Pos p = xy.plus(scaled);
+                Pos f = symmetry.pos;
 
-                                if(guess.isNotEmpty(p)) {
-                                    Colour c = guess.get(p);
-                                    counts[y][x][c.ordinal()] += symmetry.cellsObeying;
+                switch (symmetry.type)
+                {
+                    case Trans:
+                    {
+                        int iSpan = 3;
+                        for(int y = 0; y < guess.getHeight(); ++y) {
+                            for(int x = 0; x < guess.getWidth(); ++x) {
+                                Pos xy = new Pos(x, y);
+                                for(int i = -iSpan; i <= iSpan; ++i) {
+                                    Pos scaled = symmetry.pos.times(i);
+                                    Pos p = xy.plus(scaled);
+
+                                    if(guess.isNotEmpty(p)) {
+                                        Colour c = guess.get(p);
+                                        counts[y][x][c.ordinal()] += symmetry.cellsObeying * symmetry.cellsObeying;
+                                    }
                                 }
                             }
                         }
+                        break;
                     }
-                    break;
-                }
 
-                case Horz:
-                {
-                    int offset = symmetry.isEven ? -1 : 0;
-                    int foldY = symmetry.pos.y; // when even, foldY == foldY - 1, and foldY + i == foldY - 1 - i
-                    for(int y = 0; y < guess.getHeight(); ++y) {
-                        for (int x = 0; x < guess.getWidth(); ++x) {
-                            Pos src = new Pos(x, 2 * foldY + offset - y);
+                    case Horz:
+                    {
+                        int offset = symmetry.isEven ? -1 : 0;
+                        int foldY = symmetry.pos.y; // when even, foldY == foldY - 1, and foldY + i == foldY - 1 - i
+                        for(int y = 0; y < guess.getHeight(); ++y) {
+                            for (int x = 0; x < guess.getWidth(); ++x) {
+                                Pos src = new Pos(x, 2 * foldY + offset - y);
 
-                            if(guess.isNotEmpty(src)) {
-                                Colour c = guess.get(src);
-                                counts[y][x][c.ordinal()] += symmetry.cellsObeying;
+                                if(guess.isNotEmpty(src)) {
+    //                            if(guess.isNotEmpty(src)) {
+                                    Colour c = guess.get(src);
+                                    counts[y][x][c.ordinal()] += symmetry.cellsObeying * symmetry.cellsObeying;
+                                }
                             }
                         }
+                        break;
                     }
-                    break;
-                }
 
-                case Vert:
-                {
-                    // when even, foldX == foldX - 1, and foldX + i == foldX - 1 - i
-                    int offset = symmetry.isEven ? -1 : 0;
-                    int foldX = symmetry.pos.x;
+                    case Vert:
+                    {
+                        // when even, foldX == foldX - 1, and foldX + i == foldX - 1 - i
+                        int offset = symmetry.isEven ? -1 : 0;
+                        int foldX = symmetry.pos.x;
 
-                    for(int y = 0; y < guess.getHeight(); ++y) {
-                        for (int x = 0; x < guess.getWidth(); ++x) {
-                            Pos src = new Pos(2 * foldX + offset - x, y);
+                        for(int y = 0; y < guess.getHeight(); ++y) {
+                            for (int x = 0; x < guess.getWidth(); ++x) {
+                                Pos src = new Pos(2 * foldX + offset - x, y);
 
-                            // if the source is "empty", we don't cast a vote
-                            if(guess.isNotEmpty(src)) {
-                                Colour c = guess.get(src);
-                                counts[y][x][c.ordinal()] += symmetry.cellsObeying;
+                                // if the source is "empty", we don't cast a vote
+                                if(guess.isNotEmpty(src)) {
+                                    Colour c = guess.get(src);
+                                    counts[y][x][c.ordinal()] += symmetry.cellsObeying * symmetry.cellsObeying;
+                                }
                             }
                         }
+
+                        break;
                     }
 
-                    break;
-                }
+                    case Diag:
+                    case NegDiag:
+                    {
+                        for(int y = 0; y < guess.getHeight(); ++y) {
+                            for (int x = 0; x < guess.getWidth(); ++x) {
+                                float c = (y - x + f.x - f.y) / 2.f;
+                                float d = (x + y - f.x - f.y) / 2.f;
 
-                case Diag:
-                case NegDiag:
-                {
-                    for(int y = 0; y < guess.getHeight(); ++y) {
-                        for (int x = 0; x < guess.getWidth(); ++x) {
-                            int c = (y - x + f.x - f.y) / 2;
-                            int d = (x + y - f.x - f.y) / 2;
+                                Pos delta = new Pos(Math.round(c + d), Math.round(d - c));
+                                if(symmetry.type == SymmetryType.NegDiag)
+                                    delta = delta.times(-1);
 
-                            Pos delta = new Pos(c + d, d - c);
-                            if(symmetry.type == SymmetryType.NegDiag)
-                                delta = delta.times(-1);
+                                Pos src = f.plus(delta);
 
-                            Pos src = f.plus(delta);
-
-                            // if the source is "empty" or out of bounds, we don't cast a vote
-                            if(guess.isNotEmpty(src)) {
-                                Colour col = guess.get(src);
-                                counts[y][x][col.ordinal()] += symmetry.cellsObeying;
+                                // if the source is "empty" or out of bounds, we don't cast a vote
+                                if(guess.isNotEmpty(src)) {
+                                    Colour col = guess.get(src);
+                                    counts[y][x][col.ordinal()] += symmetry.cellsObeying * symmetry.cellsObeying;
+                                }
                             }
                         }
-                    }
 
-                    break;
+                        break;
+                    }
                 }
             }
 
-        }
-
-        for(int y = 0; y < guess.getHeight(); ++y)
-        {
-            for (int x = 0; x < guess.getWidth(); ++x)
+            for(int y = 0; y < guess.getHeight(); ++y)
             {
-                Pos xy = new Pos(x, y);
-                T2<Integer, Integer> idxVal = ArrayUtil.maxIndexAndValue(counts[y][x], 0);
-                Colour bestColor = Colour.toColour(idxVal.getA());
-                guess.set(xy, bestColor);
+                for (int x = 0; x < guess.getWidth(); ++x)
+                {
+                    Pos xy = new Pos(x, y);
+                    T2<Integer, Integer> idxVal = ArrayUtil.maxIndexAndValue(counts[y][x], 0);
+                    Colour bestColor = Colour.toColour(idxVal.getA());
+                    guess.set(xy, bestColor);
+                }
             }
+
+            gridsAndEntropy.add(guess);
         }
 
-        return guess;
+        gridsAndEntropy.sort(Comparator.comparing(g -> g.calculateShannonEntropy().total()));
+
+        return gridsAndEntropy.get(0);
     }
 
     public List<Symmetry> getAllSymmetries(ColorGrid input)
@@ -671,7 +687,6 @@ public class Pattern
         symmetries.addAll(bases);
         return symmetries;
     }
-
 
     public float[][] autocorrelation2D(ColorGrid grid)
     {

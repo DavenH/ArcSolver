@@ -447,6 +447,14 @@ public class ColorGrid extends Grid<Colour>
             vert = new float[h];
             horz = new float[w];
         }
+
+        public float total()
+        {
+            float total = 0;
+            for(float f : vert) total += f;
+            for(float f : horz) total += f;
+            return total;
+        }
     }
 
     public EntropyData calculateShannonEntropy()
@@ -582,6 +590,11 @@ public class ColorGrid extends Grid<Colour>
         return array;
     }
 
+    public void buildTreeByEntropySplits()
+    {
+        buildTreeByEntropySplits(true);
+    }
+
     public void buildTreeByEntropySplits(boolean horizontal)
     {
         EntropyData entropyData = calculateCellTransitions();
@@ -626,6 +639,9 @@ public class ColorGrid extends Grid<Colour>
             if(child instanceof ColorGrid)
                 ((ColorGrid)child).buildTreeByEntropySplits(! horizontal);
         }
+
+        if(children.isEmpty())
+            buildTreeByEntropySplits(! horizontal);
     }
 
     public ColorGrid removeFromOriginEdge(boolean isFromBottomRatherThanLeft, int length)

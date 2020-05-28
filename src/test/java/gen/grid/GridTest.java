@@ -19,6 +19,21 @@ public class GridTest extends Test
         return grid;
     }
 
+    public static ColorGrid makeSegmentedGrid()
+    {
+        ColorGrid grid = new ColorGrid(null,
+                                       "0040000011" +
+                                       "0041224011" +
+                                       "0040000011" +
+                                       "0041554011" +
+                                       "0042266611" +
+                                       "4444444444" +
+                                       "0022266400" +
+                                       "0077766400", 10);
+
+        return grid;
+    }
+
     public static ColorGrid makeWackyGrid()
     {
         ColorGrid grid = new ColorGrid(null, "10239485610934109" +
