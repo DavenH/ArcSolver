@@ -220,7 +220,7 @@ public class Previewer extends Application implements ANTLRErrorListener
     public void start(Stage primaryStage)
     {
         primaryStage.setTitle("ARC Explorer");
-        controller.loadTasks(new File("C:\\Users\\Public\\data\\ARC-master\\data\\"));
+        controller.loadTasks(new File("/c/Users/Public/data/ARC-master/data/"));
 
         Button next = new Button("Next");
         Button prev = new Button("Prev");
@@ -307,7 +307,7 @@ public class Previewer extends Application implements ANTLRErrorListener
     public void stop()
     {
         System.out.println("Saving changes...");
-        controller.saveTasks(new File("C:\\Users\\Public\\data\\ARC-master\\data\\"));
+        controller.saveTasks(new File("/c/Users/Public/data/ARC-master/data/"));
     }
 
     public void updateTask()
@@ -342,7 +342,7 @@ public class Previewer extends Application implements ANTLRErrorListener
         List<Task.Sample> testSamples = task.getTestSamples();
 
         int preferredWidth = (1600 - 500 - trainSamples.size() * 10 - 20) / (trainSamples.size());
-        int preferredHeight = (960 - 300 - 70) / (2);
+        int preferredHeight = (800 - 300 - 70) / (2);
 
         taskPairs.getChildren().clear();
 
@@ -359,7 +359,7 @@ public class Previewer extends Application implements ANTLRErrorListener
         }
 
         testBoards.getChildren().clear();
-        testBoards.setMinHeight(400);
+        testBoards.setMinHeight(350);
 
         for(Task.Sample sample : testSamples)
         {
@@ -465,15 +465,16 @@ public class Previewer extends Application implements ANTLRErrorListener
                             RecognitionException e)
     {
         String error = String.format("[%d,%d]: ", line, charPositionInLine) + message;
+        String shortError = error.substring(0, Math.min(error.length(), 40));
         if(testInputInterpreter.ownsRecognizer(recognizer))
         {
             System.err.println("[in]: " + error);
-            inputCodeErrors.setText(error);
+            inputCodeErrors.setText(shortError);
         }
         else if(testOutputInterpreter.ownsRecognizer(recognizer))
         {
             System.err.println("[out]: " + error);
-            outputCodeErrors.setText(error);
+            outputCodeErrors.setText(shortError);
         }
     }
 

@@ -106,29 +106,29 @@ public class Board extends GridPane
             }
         }
 
-        ColorGrid.EntropyData data = grid.calculateCellTransitions();
-
-        double maxVert = 0, maxHorz = 0;
-        for(double d : data.vert) { maxVert = Math.max(maxVert, d); }
-        for(double d : data.horz) { maxHorz = Math.max(maxHorz, d); }
-
-        if(maxVert > 0)
-        {
-            for(int y = 0; y < grid.getHeight(); ++y)
-            {
-                Rectangle rect = new Rectangle(tileSize, tileSize, Color.gray(data.vert[grid.getHeight() - 1 - y] / maxVert));
-                add(rect, grid.getWidth() + 1, y, 1, 1);
-            }
-        }
-
-        if(maxHorz > 0)
-        {
-            for(int x = 0; x < grid.getWidth(); ++x)
-            {
-                Rectangle rect = new Rectangle(tileSize, tileSize, Color.gray(data.horz[x] / maxHorz));
-                add(rect, x, grid.getHeight() + 1, 1, 1);
-            }
-        }
+//        ColorGrid.EntropyData data = grid.calculateCellTransitions();
+//
+//        double maxVert = 0, maxHorz = 0;
+//        for(double d : data.vert) { maxVert = Math.max(maxVert, d); }
+//        for(double d : data.horz) { maxHorz = Math.max(maxHorz, d); }
+//
+//        if(maxVert > 0)
+//        {
+//            for(int y = 0; y < grid.getHeight(); ++y)
+//            {
+//                Rectangle rect = new Rectangle(tileSize, tileSize, Color.gray(data.vert[grid.getHeight() - 1 - y] / maxVert));
+//                add(rect, grid.getWidth() + 1, y, 1, 1);
+//            }
+//        }
+//
+//        if(maxHorz > 0)
+//        {
+//            for(int x = 0; x < grid.getWidth(); ++x)
+//            {
+//                Rectangle rect = new Rectangle(tileSize, tileSize, Color.gray(data.horz[x] / maxHorz));
+//                add(rect, x, grid.getHeight() + 1, 1, 1);
+//            }
+//        }
     }
 
     public void updateGrid(float[][] data, int preferredWidth, int preferredHeight)

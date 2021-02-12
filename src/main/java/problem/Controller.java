@@ -131,7 +131,7 @@ public class Controller
 //        Controller controller = new Controller();
 //        controller.loadTasks(new File("G:\\Data\\reasoning\\ARC-master\\data"));
 
-        File file = new File("c:\\Users\\Public\\data\\test.txt");
+        File file = new File("/c/Users/Public/data/test.txt");
 //        File file = new File("G:/Data/test.txt");
 
         try

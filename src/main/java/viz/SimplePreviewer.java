@@ -36,7 +36,7 @@ public abstract class SimplePreviewer extends Application
         float min = Float.MAX_VALUE;
         float max = 0;
 
-        for(int i = 0; i < values.length; ++i)
+        for (int i = 0; i < values.length; ++i)
         {
             m += values[i];
             min = Math.min(min, values[i]);
@@ -50,7 +50,7 @@ public abstract class SimplePreviewer extends Application
 
     public SimplePreviewer()
     {
-        controller.loadTasks(new File("C:\\Users\\Public\\data\\ARC-master\\data\\"));
+        controller.loadTasks(new File("/c/Users/Public/data/ARC-master/data/"));
     }
 
     public abstract void addBoardsToPane(TilePane pane);
