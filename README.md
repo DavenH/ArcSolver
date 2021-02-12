@@ -20,7 +20,7 @@ Here's a video of code interpretation part of the  IDE in action:
 
 ![](media/output3.gif)
  
- 
+---
 And the power of masks:
 
 ![](media/mask2.gif)
