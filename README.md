@@ -20,6 +20,11 @@ Here's a video of code interpretation part of the  IDE in action:
 
 ![](media/output3.gif)
  
+ 
+And the power of masks:
+
+![](media/mask2.gif)
+ 
 ### Notable classes
 
 ##### viz.Previewer
@@ -39,3 +44,7 @@ working logically with masks.
 For example: `mask.left()` returns a mask of all the cells to the left of the positive cells in `mask`. 
 You can chain any prepositional functions, like `mask.above().left().around()`, which will give you a new mask.
   
+  
+##### main.antlr4.gen.dsl.arc.Arc.g4
+
+This file specifies the syntax of the ARC dsl language. 
