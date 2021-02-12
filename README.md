@@ -22,7 +22,7 @@ Here's a video of code interpretation part of the  IDE in action:
  
 ### Notable classes
 
-#####viz.Previewer
+##### viz.Previewer
 
 This is the integrated environment that displays the problem examples, note-taking text areas,  
 
