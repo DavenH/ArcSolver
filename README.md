@@ -39,7 +39,7 @@ This class does the heavy lifting of interpreting the ARC dsl language.
 ##### gen.grid.Mask
 
 This is the graphical backbone of the DSL. All shapes are Masks, and this class provides many utilities for 
-working logically with masks.
+spatial reasoning.
 
 For example: `mask.left()` returns a mask of all the cells to the left of the positive cells in `mask`. 
 You can chain any prepositional functions, like `mask.above().left().around()`, which will give you a new mask.
